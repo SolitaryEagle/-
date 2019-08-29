@@ -395,6 +395,348 @@
     AutowireCandidateResolver 的继承体系
 ![AutowireCandidateResolver 继承体系](image/AutowireCandidateResolver继承体系.png)
 ## AutowireCandidateResolver 解读
+    用于确定特定 bean 定义是否有资格作为特定依赖关系的自动线候选的策略接口。
+## SimpleAutowireCandidateResolver 解读
+	AutowireCandidateResolver 没有注释支持时使用的实现。此实现仅检查 bean 定义。
+#### 
+    10 进入 DefaultListableBeanFactory 的父类 AbstractAutowireCapableBeanFactory 的无参构造器
+```java
+	/**
+	 * Create a new AbstractAutowireCapableBeanFactory.
+	 */
+	public AbstractAutowireCapableBeanFactory() {
+		super();
+		ignoreDependencyInterface(BeanNameAware.class);
+		ignoreDependencyInterface(BeanFactoryAware.class);
+		ignoreDependencyInterface(BeanClassLoaderAware.class);
+	}
+    
+    // 首先初始化 AbstractAutowireCapableBeanFactory 的属性
+    /** Strategy for creating bean instances. */
+	private InstantiationStrategy instantiationStrategy = new CglibSubclassingInstantiationStrategy();
+	/** Resolver strategy for method parameter names. */
+	@Nullable
+	private ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
+```
+    CglibSubclassingInstantiationStrategy 继承体系
+![CglibSubclassingInstantiationStrategy 继承体系](image/CglibSubclassingInstantiationStrategy继承体系.png)
+## CglibSubclassingInstantiationStrategy 解读
+    在 BeanFactories 中使用的对象实例化的默认策略.
+    如果容器需要覆盖方法以实现方法注入, 则使用 CGLIB 动态生成子类.
+## SimpleInstantiationStrategy 解读
+    在 BeanFactories 中使用的对象实例化的简单策略.
+    不支持方法注入, 尽管它提供了子类的 hooks 来覆盖以添加方法注入支持, 如通过重写方法.
+## InstantiationStrategy 解读
+	负责创建与 root bean 定义相对应的实例接口.
+    随着各种方法的实现, 这被拉入战略, 包括使用 CGLIB 动态创建子类支持方法注入.
+#### 
+    DefaultParameterNameDiscoverer 继承体系
+![DefaultParameterNameDiscoverer 继承体系](image/DefaultParameterNameDiscoverer继承体系.png)
+## DefaultParameterNameDiscoverer 解读
+    	ParameterNameDiscoverer 策略接口的默认实现, 使用 Java 8 标准反射机制 (如果可用), 并回退到基于 ASM 的
+    LocalVariableTableParameterNameDiscoverer, 以检查类文件中的调试信息.
+    	如果存在 Kotlin 反射实现, 则首先在列表中添加 KotlinReflectionParameterNameDiscoverer, 并用于 Kotlin 类和接口.
+    当编译和运行一个 Graal 本地图片时, 没有 ParameterNameDiscoverer 被使用.
+    	可以通过 PrioritizedParameterNameDiscoverer.addDiscoverer(ParameterNameDiscoverer) 添加更多的发现者.
+## PrioritizedParameterNameDiscoverer 解读
+    	ParameterNameDiscoverer 实现连续尝试几个发现者委托. 首先在 addDiscoverer 方法中添加的那些具有最高优先级.
+    如果一个返回 null, 则将尝试下一个.
+    	如果没有 discoverer 匹配, 默认返回 null.
+## ParameterNameDiscoverer 解读
+    	用于发现方法和构造器的参数名称的接口.
+        参数名称发现并不总是可行，但可以尝试各种策略，例如查找可能在编译时发出的调试信息，以及查找可选的 AspectJ 注解方法的 argname
+    注解值。
+#### 
+	11 添加忽略依赖接口
+```java
+	/**
+	 * Create a new AbstractAutowireCapableBeanFactory.
+	 */
+	public AbstractAutowireCapableBeanFactory() {
+		super();
+		ignoreDependencyInterface(BeanNameAware.class);
+		ignoreDependencyInterface(BeanFactoryAware.class);
+		ignoreDependencyInterface(BeanClassLoaderAware.class);
+	}
+	/**
+	 * 忽略给定的自动装配依赖接口。
+	 * 这通常由 application context 用于注册以其他方式解析的依赖关系，
+	 * 例如 BeanFactory 通过 BeanFactoryAware 或 ApplicationContext 通过 ApplicationContextAware。
+	 * 默认情况下，仅忽略 BeanFactoryAware 接口。要忽略其他类型，请为每种类型调用此方法。
+	 *
+	 * @see org.springframework.beans.factory.BeanFactoryAware
+	 * @see org.springframework.context.ApplicationContextAware
+	 */
+	public void ignoreDependencyInterface(Class<?> ifc) {
+		this.ignoredDependencyInterfaces.add(ifc);
+	}
+    /**
+	 * Dependency interfaces to ignore on dependency check and autowire, as Set of
+	 * Class objects. By default, only the BeanFactory interface is ignored.
+	 */
+	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<>();
+```
+    12 进入 AnnotatedBeanDefinitionReader(BeanDefinitionRegistry) 构造器
+```java
+	/**
+	 * Create a new {@code AnnotatedBeanDefinitionReader} for the given registry.
+	 * If the registry is {@link EnvironmentCapable}, e.g. is an {@code ApplicationContext},
+	 * the {@link Environment} will be inherited, otherwise a new
+	 * {@link StandardEnvironment} will be created and used.
+	 * @param registry the {@code BeanFactory} to load bean definitions into,
+	 * in the form of a {@code BeanDefinitionRegistry}
+	 * @see #AnnotatedBeanDefinitionReader(BeanDefinitionRegistry, Environment)
+	 * @see #setEnvironment(Environment)
+	 */
+	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry) {
+		// registry = AnnotationConfigApplicationContext
+		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment
+		this(registry, getOrCreateEnvironment(registry));
+	}
+    // 初始化 AnnotatedBeanDefinitionReader 的属性
+    private BeanNameGenerator beanNameGenerator = new AnnotationBeanNameGenerator();
+
+	private ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
+```
+## AnnotationBeanNameGenerator 解读
+		BeanNameGenerator 实例用于生成 bean classes 的 beanName, beans classes 上有如下注解声明:
+        	1. @Component 注解
+        	2. 以 @Component 作为元注解的注解
+    	如, Spring 的 stereotype 注解(如, @Repository), 它本身有 @Component 注解声明.
+        还支持 JavaEE 6 的 ManagedBean 和 JSR-330 的 Named 注解(如果可用). 请注意, Spring component 注解总是覆盖这些标准
+    注解.
+    	如果注解的 value 没有设置一个 beanName, 则根据类的短名称 (第一个字母为小写) 构建适当的 beanName. 如:
+```
+com.xyz.FooServiceImpl -> fooServiceImpl
+```
+## BeanNameGenerator 解读
+    用于为 bean 定义生成 beanName 的策略接口.
+#### 
+    13 进入 AnnotationScopeMetadataResolver 的无参构造器
+```java
+	/**
+	 * Construct a new {@code AnnotationScopeMetadataResolver}.
+	 * @see #AnnotationScopeMetadataResolver(ScopedProxyMode)
+	 * @see ScopedProxyMode#NO
+	public AnnotationScopeMetadataResolver() {
+    	// 设置 defaultProxyMode 属性
+		this.defaultProxyMode = ScopedProxyMode.NO;
+	}
+```
+## AnnotationScopeMetadataResolver 解读
+    ScopeMetadataResolver 实现, 默认情况下检查 bean 类上是否存在 Spring 的 @Scope 注解.
+    检查的确切的注解类型可通过 setScopeAnnotationType(Class) 配置.
+## ScopeMetadataResolver 解读
+	用于解析 bean 定义范围的策略接口.
+## ScopedProxyMode 解读
+	枚举各种范围代理选项.
+    有关 scoped proxy 的确切内容的更全面的讨论, 请参阅 Spring 参考文档的 'Scoped beans as dependencies' 部分.
+## ScopeMetadata 解读
+    描述 Spring 管理的 bean 的 scope 特征, 包括范围名称和范围代理的行为.
+    默认的 Scope 是 "singleton", 默认情况下不创建 scoped-proxy.
+#### 
+    14 回到 AnnotatedBeanDefinitionReader(BeanDefinitionRegistry) 构造器
+```java
+	/**
+	 * 使用给定的 registry 创建一个 AnnotatedBeanDefinitionReader.
+	 * 如果 registry 是 EnvironmentCapable (如, ApplicationContext),
+	 * Environment 将被遗传, 否则将使用一个 StandardEnvironment
+	 * @param registry the {@code BeanFactory} to load bean definitions into,
+	 * in the form of a {@code BeanDefinitionRegistry}
+	 * @see #AnnotatedBeanDefinitionReader(BeanDefinitionRegistry, Environment)
+	 * @see #setEnvironment(Environment)
+	 */
+	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry) {
+		// registry = AnnotationConfigApplicationContext
+		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment
+		this(registry, getOrCreateEnvironment(registry));
+	}
+    /**
+	 * Get the Environment from the given registry if possible, otherwise return a new
+	 * StandardEnvironment.
+	 */
+	private static Environment getOrCreateEnvironment(BeanDefinitionRegistry registry) {
+		// registry = AnnotationConfigApplicationContext
+		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
+		if (registry instanceof EnvironmentCapable) {
+			return ((EnvironmentCapable) registry).getEnvironment();
+		}
+		return new StandardEnvironment();
+	}
+    /**
+	 * Create a new {@code AnnotatedBeanDefinitionReader} for the given registry and using
+	 * the given {@link Environment}.
+	 * @param registry the {@code BeanFactory} to load bean definitions into,
+	 * in the form of a {@code BeanDefinitionRegistry}
+	 * @param environment the {@code Environment} to use when evaluating bean definition
+	 * profiles.
+	 * @since 3.1
+	 */
+	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry, Environment environment) {
+		// registry = AnnotationConfigApplicationContext, environment = StandardEnvironment
+		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
+		Assert.notNull(environment, "Environment must not be null");
+		this.registry = registry;
+		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment, arg2 = null
+		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
+		// 这个方法的核心就是注册Spring内置的多个Bean
+		// 这里仅仅是注册，可以简单的理解为把一些原料放入工厂，工厂还没有真正的去生产。
+		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
+	}
+    /**
+	 * Create a new {@link ConditionEvaluator} instance.
+	 */
+	public ConditionEvaluator(@Nullable BeanDefinitionRegistry registry,
+			@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
+		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment, arg2 = null
+		this.context = new ConditionContextImpl(registry, environment, resourceLoader);
+	}
+    public ConditionContextImpl(@Nullable BeanDefinitionRegistry registry,
+            @Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
+        // registry = AnnotationConfigApplicationContext,
+        // environment = StandardEnvironment, resourceLoader = null
+        this.registry = registry;
+        // 推断 beanFactory ，arg0 = AnnotationConfigApplicationContext
+        this.beanFactory = deduceBeanFactory(registry);
+        this.environment = (environment != null ? environment : deduceEnvironment(registry));
+        // 推断 resourceLoader，arg0 = AnnotationConfigApplicationContext
+        this.resourceLoader = (resourceLoader != null ? resourceLoader : deduceResourceLoader(registry));
+        // 推断 classLoader，arg0 = null, arg1 = DefaultListableBeanFactory
+        this.classLoader = deduceClassLoader(resourceLoader, this.beanFactory);
+    }
+    @Nullable
+    private ConfigurableListableBeanFactory deduceBeanFactory(@Nullable BeanDefinitionRegistry source) {
+		// source = AnnotationConfigApplicationContext
+        if (source instanceof ConfigurableListableBeanFactory) {
+            return (ConfigurableListableBeanFactory) source;
+        }
+        // true
+        if (source instanceof ConfigurableApplicationContext) {
+			// DefaultListableBeanFactory
+            return (((ConfigurableApplicationContext) source).getBeanFactory());
+        }
+        return null;
+    }
+    private ResourceLoader deduceResourceLoader(@Nullable BeanDefinitionRegistry source) {
+		// source = AnnotationConfigApplicationContext
+        if (source instanceof ResourceLoader) {
+            return (ResourceLoader) source;
+        }
+        return new DefaultResourceLoader();
+	}
+    @Nullable
+    private ClassLoader deduceClassLoader(@Nullable ResourceLoader resourceLoader,
+            @Nullable ConfigurableListableBeanFactory beanFactory) {
+		// resourceLoader = null, beanFactory = DefaultListableBeanFactory
+        if (resourceLoader != null) {
+            ClassLoader classLoader = resourceLoader.getClassLoader();
+            if (classLoader != null) {
+                return classLoader;
+            }
+        }
+		// true
+        if (beanFactory != null) {
+			// sun.misc.Launcher.AppClassLoader
+            return beanFactory.getBeanClassLoader();
+        }
+        return ClassUtils.getDefaultClassLoader();
+    }
+    
+```
+#### 
+    15 进入 AnnotationConfigUtils#registerAnnotationConfigProcessors(BeanDefinitionRegistry)
+```java
+	/**
+	 * 在给定的注册器中注册所有向应的 注解后处理器
+	 * @param registry the registry to operate on
+	 */
+	public static void registerAnnotationConfigProcessors(BeanDefinitionRegistry registry) {
+		// registry = AnnotationConfigApplicationContext
+		// arg0 = AnnotationConfigApplicationContext, arg1 = null
+		registerAnnotationConfigProcessors(registry, null);
+	}
+    /**
+	 * Register all relevant annotation post processors in the given registry.
+	 * @param registry the registry to operate on
+	 * @param source the configuration source element (already extracted)
+	 * that this registration was triggered from. May be {@code null}.
+	 * @return a Set of BeanDefinitionHolders, containing all bean definitions
+	 * that have actually been registered by this call
+	 */
+	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
+			BeanDefinitionRegistry registry, @Nullable Object source) {
+		// registry = AnnotationConfigApplicationContext, source = null
+		// DefaultListableBeanFactory
+		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
+		// true
+		if (beanFactory != null) {
+			// true
+			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
+				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
+			}
+			if (!(beanFactory.getAutowireCandidateResolver() instanceof
+            		ContextAnnotationAutowireCandidateResolver)) {
+				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
+			}
+		}
+
+		// 加入了一堆默认的 BeanDefinitionHolder
+		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
+
+		// true
+		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			// 这个 Bean 的注册是最重要的。
+			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
+			def.setSource(source);
+			// BeanDefinitionHolder
+			beanDefs.add(registerPostProcessor(registry, def, CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME));
+		}
+
+		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			RootBeanDefinition def = new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class);
+			def.setSource(source);
+			beanDefs.add(registerPostProcessor(registry, def, AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME));
+		}
+
+		// Check for JSR-250 support, and if present add the CommonAnnotationBeanPostProcessor.
+		if (jsr250Present && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			RootBeanDefinition def = new RootBeanDefinition(CommonAnnotationBeanPostProcessor.class);
+			def.setSource(source);
+			beanDefs.add(registerPostProcessor(registry, def, COMMON_ANNOTATION_PROCESSOR_BEAN_NAME));
+		}
+
+		// Check for JPA support, and if present add the PersistenceAnnotationBeanPostProcessor.
+		if (jpaPresent && !registry.containsBeanDefinition(PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME)) {
+			RootBeanDefinition def = new RootBeanDefinition();
+			try {
+				def.setBeanClass(ClassUtils.forName(PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME,
+						AnnotationConfigUtils.class.getClassLoader()));
+			}
+			catch (ClassNotFoundException ex) {
+				throw new IllegalStateException(
+						"Cannot load optional framework class: " + PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME, ex);
+			}
+			def.setSource(source);
+			beanDefs.add(registerPostProcessor(registry, def, PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME));
+		}
+
+		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
+			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
+			def.setSource(source);
+			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_PROCESSOR_BEAN_NAME));
+		}
+
+		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
+			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
+			def.setSource(source);
+			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_FACTORY_BEAN_NAME));
+		}
+
+		return beanDefs;
+	}
+```
+## AnnotationConfigUtils 解读
+    
     
     
     
@@ -408,6 +750,7 @@
     
     
     
+
     
     
     
