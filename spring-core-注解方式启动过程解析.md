@@ -214,6 +214,15 @@
     而不是特定的模式格式.
     	此接口还为类路径中的所有匹配资源建议新的资源前缀 "classpath*:". 请注意, 在这种情况下, 资源位置应该是没有占位符的路径 (如,
     "/beans.xml"); Jar 文件或类目录可以包含多个同名文件.
+## ContextClosedEvent 解读
+	ApplicationContext关闭时引发的事件。
+## ApplicationContextEvent 解读
+	ApplicationContext 引发事件的基类
+## ApplicationEvent 解读
+	所有应用程序事件都要扩展的类。摘要因为直接发布通用事件没有意义。
+## EventObject 解读
+	从中派生所有事件状态对象的根类。
+    所有事件都是通过对对象的引用构建的，“source”在逻辑上被认为是最初发生事件的对象.
 #### 
  	5 进入 AbstractApplicationContext 的父类 DefaultResourceLoader 的无参构造器
 ```java
@@ -392,6 +401,30 @@
     // 进入 SimpleAutowireCandidateResolver 的无参构造器 (JDK 默认提供)
     
 ```
+	DefaultListableBeanFactory 继承体系
+![DefaultListableBeanFactory 继承体系](image/DefaultListableBeanFactory继承体系.png)
+## DefaultListableBeanFactory 解读
+		Spring 的 ConfigurableListableBeanFactory and BeanDefinitionRegistry 接口的默认实现: 一个基于 bean 定义
+    元数据的完整 bean 工厂, 可以通过 后置处理器 扩展.
+    	典型的用法是在访问 bean 之前首先注册所有 bean 定义(可能从 bean 定义文件中读取). 因此, 按名称进行 bean 查找是本地 bean
+    定义表中的廉价操作, 对预解析的 bean 定义元数据对象进行操作.
+    	请注意, 特定于 bean 定义格式的 reader 通常是单独实现的, 而不是作为 bean 工厂子类实现的: 如,
+     PropertiesBeanDefinitionReader and XmlBeanDefinitionReader.
+     	有关 ListableBeanFactory 接口的替代实现, 请查看 StaticListableBeanFactory, 它管理现有的 bean 实例, 而不是基于
+    bean 定义创建新的实例.
+## ConfigurableListableBeanFactory 解读
+		配置接口由大多数可列出的 bean 工厂实现。除了 ConfigurableBeanFactory 之外，它还提供了分析和修改 bean 定义以及
+    预先实例化单例的工具。
+    	BeanFactory 的这个子接口并不适用于普通的应用程序代码：针对典型用例，坚持使用 BeanFactory 或 ListableBeanFactory。
+    这个接口只是为了允许框架内部的即插即用，即使需要访问bean工厂配置方法。
+## AutowireCapableBeanFactory 解读
+## SingletonBeanRegistry 解读
+## ConfigurableBeanFactory 解读
+
+
+
+
+	
     AutowireCandidateResolver 的继承体系
 ![AutowireCandidateResolver 继承体系](image/AutowireCandidateResolver继承体系.png)
 ## AutowireCandidateResolver 解读
