@@ -1,5 +1,4 @@
-# Spring 注解方式启动过程
-	首先看一下启动类 AnnotationConfigApplicationContext 的继承体系
+	AnnotationConfigApplicationContext 的继承体系
    ![AnnotationConfigApplicationContext 继承体系](image/AnnotationConfigApplicationContext继承体系.png)
 ## AnnotationConfigApplicationContext 解读
 		独立应用程序上下文，接受注解类作为输入，特别是 @Configuration 类，也接受普通的 @Component 类和使用 javax.inject 注解的
@@ -11,46 +10,6 @@
     ClassPathBeanDefinitionScanner 不怎么使用。只有手动调用 scan(String...) 方法才会使用。
 ## AnnotationConfigRegistry 解读
 	注解配置的应用程序上下文的通用接口, 定义了 register(java.lang.Class<?>...) 和 scan(java.lang.String...) 方法.
-##### 
-    1 程序启动入口：
-```java
-    /**
-	 * Create a new AnnotationConfigApplicationContext, deriving bean definitions
-	 * from the given annotated classes and automatically refreshing the context.
-	 * @param annotatedClasses one or more annotated classes,
-	 * e.g. {@link Configuration @Configuration} classes
-	 */
-	public AnnotationConfigApplicationContext(Class<?>... annotatedClasses) {
-		this();
-		// 注册配置类, annotatedClasses = CustomizeConfiguration.class
-		register(annotatedClasses);
-		refresh();
-	}
-```
-    2 接着程序会进入 AnnotationConfigApplicationContext 的无参构造器
-```java
-	/**
-	 * Create a new AnnotationConfigApplicationContext that needs to be populated
-	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
-	 */
-	public AnnotationConfigApplicationContext() {
-		super();
-		this.reader = new AnnotatedBeanDefinitionReader(this);
-		this.scanner = new ClassPathBeanDefinitionScanner(this);
-	}
-```
-	3 进入 AnnotationConfigApplicationContext 的父类 GenericApplicationContext 的无参构造器
-```java
-	/**
-	 * Create a new GenericApplicationContext.
-	 * @see #registerBeanDefinition
-	 * @see #refresh
-	 */
-	public GenericApplicationContext() {
-		super();
-		this.beanFactory = new DefaultListableBeanFactory();
-	}
-```
 ## GenericApplicationContext 解读
 		泛型 ApplicationContext 实现, 它包含单个内部 DefaultListableBeanFactory 实例, 并且不假定特定的 bean 定义格式. 实现
     BeanDefinitionRegistry 接口以允许将任何 bean 定义读取器应用于它.
@@ -81,17 +40,6 @@
     	这是 Spring 工厂包中唯一封装 bean 定义注册的接口. 标准的 BeanFactory 接口仅涵盖对完全配置的工厂实例的访问.
         Spring 的 bean 定义读取器期望工作在这个接口的一个实现中. 已知的实现者是 DefaultListableBeanFactory 和
     GenericApplicationContext.
-##### 
-	4 进入 GenericApplicationContext 的父类 AbstractApplicationContext 的无参构造器
-```java
-	/**
-	 * Create a new AbstractApplicationContext with no parent.
-	 */
-	public AbstractApplicationContext() {
-		super();
-		this.resourcePatternResolver = getResourcePatternResolver();
-	}
-```
 ## AbstractApplicationContext 解读
 		ApplicationContext 接口的抽象实现. 不要求用于配置的存储类型; 只需要简单实现常见的上下文功能, 使用 Template Method 
     设计模式, 需要具体的子类来实现抽象方法.
@@ -223,63 +171,10 @@
 ## EventObject 解读
 	从中派生所有事件状态对象的根类。
     所有事件都是通过对对象的引用构建的，“source”在逻辑上被认为是最初发生事件的对象.
-#### 
- 	5 进入 AbstractApplicationContext 的父类 DefaultResourceLoader 的无参构造器
-```java
-	/**
-	 * Create a new DefaultResourceLoader.
-	 * <p>ClassLoader access will happen using the thread context class loader
-	 * at the time of this ResourceLoader's initialization.
-	 * @see java.lang.Thread#getContextClassLoader()
-	 */
-	public DefaultResourceLoader() {
-		super();
-        // sun.misc.Launcher.AppClassLoader 设置类加载器
-		this.classLoader = ClassUtils.getDefaultClassLoader();
-	}
-```
 ## DefaultResourceLoader 解读
 		ResourceLoader 接口的默认实现。使用于 ResourceEditor 和 作为  AbstractApplicationContext 的基类. 也可以单独使用.
 		如果 location 值是一个 URL, 将返回 UrlResource; 如果是非 URL 路径或 "classpath:" 伪 URL 路径, 将返回
     ClassPathResource.
-#### 
-	6 通过 getResourcePatternResolver() 设置 resourcePatternResolver
-```java
-	/**
-	 * Return the ResourcePatternResolver to use for resolving location patterns
-	 * into Resource instances. Default is a
-	 * {@link org.springframework.core.io.support.PathMatchingResourcePatternResolver},
-	 * supporting Ant-style location patterns.
-	 * <p>Can be overridden in subclasses, for extended resolution strategies,
-	 * for example in a web environment.
-	 * <p><b>Do not call this when needing to resolve a location pattern.</b>
-	 * Call the context's {@code getResources} method instead, which
-	 * will delegate to the ResourcePatternResolver.
-	 * @return the ResourcePatternResolver for this context
-	 * @see #getResources
-	 * @see org.springframework.core.io.support.PathMatchingResourcePatternResolver
-	 */
-	protected ResourcePatternResolver getResourcePatternResolver() {
-		// arg1 = AnnotationConfigApplicationContext
-		return new PathMatchingResourcePatternResolver(this);
-	}
-```
-    7 进入 PathMatchingResourcePatternResolver(ResourceLoader) 构造器
-```java
-	/**
-	 * Create a new PathMatchingResourcePatternResolver.
-	 * <p>ClassLoader access will happen via the thread context class loader.
-	 * @param resourceLoader the ResourceLoader to load root directories and
-	 * actual resources with
-	 */
-	public PathMatchingResourcePatternResolver(ResourceLoader resourceLoader) {
-		// resourceLoader = AnnotationConfigApplicationContext
-		super();
-		Assert.notNull(resourceLoader, "ResourceLoader must not be null");
-        // 设置资源加载器为 AnnotationConfigApplicationContext
-		this.resourceLoader = resourceLoader;
-	}
-```
 ## PathMatchingResourcePatternResolver 解读
     	一个 ResourcePatternResolver 的实现, 能够将指定资源的 location path 解析为一个或多个 Resources. 源路径可以是与目标
     Resource 具有一对一映射的简单路径, 或者可以包含特殊的 "classpath*:" 前缀 and/or Ant-style 正则表达式 (使用 Spring 的
@@ -287,8 +182,8 @@
     
     	没有通配符: 在简单的情况下, 如果指定的位置的路径不以 "classpath*:" 前缀开头, 并且不包含 PathMatcher 模式, 则此解析器将仅
     通过调用底层的 ResourceLoader#$getResource() 返回一个单独的资源. 如, 真实的 URLs(如, "file:C:/context.xml"), 伪 URLs
-    (如, "classpath:/context.xml"), 简单的无前缀路径(如, "/WEB-INF/context.xml"). 后者将以特定于底层 ResourceLoader 的方式
-    解析(如, ServletContextResource 用于 WebApplicationContext).
+    (如, "classpath:/context.xml"), 简单的无前缀路径(如, "/WEB-INF/context.xml"). 后者将以特定于底层 ResourceLoader 的
+    方式解析(如, ServletContextResource 用于 WebApplicationContext).
     
     	Ant-Style 模式: 当位置路径中包含 Ant-Style 模式时, 如:
 ```
@@ -298,58 +193,36 @@
  classpath:com/mycompany/**/applicationContext.xml
 ```
     	解析器将遵循一个更复杂但定义好的过程来尝试解析通配符. 它生成一个 Resource 直到最后一个非通配符段的路径并从中获取 URL. 如果
-    URL 不是一个 "jar:" URL 或者容器专用的变种(如, WebLogic 的 "zip:", WebSphere 的 "wsjar" 等), 则从中获得一个 java.io.File.
-    并通过遍历文件系统来解析通配符. 如果是一个 jar URL, 解析器从中获取一个 java.net.JarURLConnection, 或者手动解析这个 jar URL,
-    然后遍历 jar 文件内容, 以解析通配符.
+    URL 不是一个 "jar:" URL 或者容器专用的变种(如, WebLogic 的 "zip:", WebSphere 的 "wsjar" 等), 则从中获得一个
+    java.io.File.并通过遍历文件系统来解析通配符. 如果是一个 jar URL, 解析器从中获取一个 java.net.JarURLConnection, 或者手动
+    解析这个 jar URL,然后遍历 jar 文件内容, 以解析通配符.
     
     	可移植性启示:
         	如果指定的路径已经是文件 URL(显示或隐式, 因为 base ResourceLoader 是文件系统), 那么通配符保证以完全可移植的方式工作.
-    		如果指定的路径是类路径位置, 则解析器必须通过调用 Classloader.getResource() 来获得最后一段非通配符路径 URL. 由于这只是
-        路径的一个节点 (不是最后的文件), 因此在这种情况下, 实际上未定义 (在 ClassLoader 中) 究竟返回了什么类型的 URL. 实际上, 它通
-        常是一个代表目录的 java.io.File (意味着 classpath 资源解析为文件系统位置), 或者某种类型的 jar URL (意味着 classpath 资
-        源解析为文件 jar 位置). 尽管如此, 这个操作仍然存在可移植性问题.
+    		如果指定的路径是类路径位置, 则解析器必须通过调用 Classloader.getResource() 来获得最后一段非通配符路径 URL. 由于这
+        只是路径的一个节点 (不是最后的文件), 因此在这种情况下, 实际上未定义 (在 ClassLoader 中) 究竟返回了什么类型的 URL. 
+        实际上, 它通常是一个代表目录的 java.io.File (意味着 classpath 资源解析为文件系统位置), 或者某种类型的 jar URL
+        (意味着 classpath 资源解析为文件 jar 位置). 尽管如此, 这个操作仍然存在可移植性问题.
     
     	"classpath*:" 前缀:
-    		特别支持通过 "classpath*:" 前缀检索具有相同名称的多个类路径资源. 如, "classpath*:META-INF/beans.xml" 将在类路径中
-        找到所有的 "bean.xml" 文件, 无论是在 "classes" 目录还是 jar 文件中. 这对于在每个 jar 文件中的相同位置自动检测同名的配置文
-        件特备有用. 在内部, 这通过调用 Classloader.getResources() 发生, 并且完全可移植.
-        	"classpath*:" 前缀也可以与位置路径的其余部分中的 PathMatcher 模式组合. 如, "classpath*:META-INF/*-bean.xml". 在
-        这种情况下, 解析策略非常简单: 在最后一个非通配符路径段上 调用 Classloader.getResources() 来获取类加载器层次结构中的所有匹配
-        资源. 然后关闭每个资源, 使用与上述相同的解析策略的 PathMatcher 解析通配符子路径.
+    		特别支持通过 "classpath*:" 前缀检索具有相同名称的多个类路径资源. 如, "classpath*:META-INF/beans.xml" 将在
+        类路径中找到所有的 "bean.xml" 文件, 无论是在 "classes" 目录还是 jar 文件中. 这对于在每个 jar 文件中的相同位置自动
+        检测同名的配置文件特备有用. 在内部, 这通过调用 Classloader.getResources() 发生, 并且完全可移植.
+        	"classpath*:" 前缀也可以与位置路径的其余部分中的 PathMatcher 模式组合. 如, "classpath*:META-INF/*-bean.xml".
+        在这种情况下, 解析策略非常简单: 在最后一个非通配符路径段上 调用 Classloader.getResources() 来获取类加载器层次结构中的
+        所有匹配资源. 然后关闭每个资源, 使用与上述相同的解析策略的 PathMatcher 解析通配符子路径.
         
         其它说明:
-        	警告: 请注意, "classpath*:" 与 Ant-style 模式结合使用时, 只能在模式启动前与至少一个根目录可靠地工作, 除非实际目标文件
-        驻留在文件系统中. 这意味着 "classpath*:*.xml" 这样的模式不会从 jar 文件的根目录中检索文件, 而只能从扩展目录的根目录中检索文
-        件. 这源于 JDK Classloader.getResources() 方法的限制, 该方法仅在传入空字符串时返回文件系统位置(指示搜索的潜在根).
-        ResourcePatternResolver 实现尝试通过 URLClassloader 自我检查和 "java.class.path" 清单评估来缓解 jar 根查找限制; 但是,
-        没有可移植性保证.
-        	警告: 如果要搜索的根包在多个类路径中可用, 则不保证具有 "classpath:" 资源的 Ant-Style 模式可以找到匹配的资源. 这是因为
-        资源如 "com/mycompany/package1/service-context.xml", 可能只在一个位置, 但是当一个路径如
-        "classpath:com/mycompany/**/service-context.xml", 被用于尝试解析时, 解析器将工作在 getResource("com/mycompany")
-        返回的 (第一个) URL 上; 如果基本包节点不存在于多个类加载器位置中, 则实际的最终资源可能不再下面. 因此, 在这样的情况下, 使用的
-        "classpath*:" 最好与 Ant-style 模式一致, 这将搜索包含根路径的所有类路径位置.
-#### 
-	8 PathMatchingResourcePatternResolver 初始化 pathMatcher 属性
-```java
-	private PathMatcher pathMatcher = new AntPathMatcher();
-    
-    /**
-	 * Create a new instance with the {@link #DEFAULT_PATH_SEPARATOR}.
-	 */
-	public AntPathMatcher() {
-    	// 设置路径分隔符, 默认为 "/"
-		this.pathSeparator = DEFAULT_PATH_SEPARATOR;
-        // 设置路径分隔符模式缓存
-		this.pathSeparatorPatternCache = new PathSeparatorPatternCache(DEFAULT_PATH_SEPARATOR);
-	}
-    
-    // PathSeparatorPatternCache 是 AntPathMatcher 的 private 内部类
-    public PathSeparatorPatternCache(String pathSeparator) {
-        this.endsOnWildCard = pathSeparator + "*";
-        this.endsOnDoubleWildCard = pathSeparator + "**";
-    }
-    
-```
+        	警告: 请注意, "classpath*:" 与 Ant-style 模式结合使用时, 只能在模式启动前与至少一个根目录可靠地工作, 除非实际目标
+        文件驻留在文件系统中. 这意味着 "classpath*:*.xml" 这样的模式不会从 jar 文件的根目录中检索文件, 而只能从扩展目录的根目录
+        中检索文件. 这源于 JDK Classloader.getResources() 方法的限制, 该方法仅在传入空字符串时返回文件系统位置(指示搜索的潜在
+        根).ResourcePatternResolver 实现尝试通过 URLClassloader 自我检查和 "java.class.path" 清单评估来缓解 jar 根查找
+        限制; 但是,没有可移植性保证.
+        	警告: 如果要搜索的根包在多个类路径中可用, 则不保证具有 "classpath:" 资源的 Ant-Style 模式可以找到匹配的资源.
+        这是因为资源如 "com/mycompany/package1/service-context.xml", 可能只在一个位置, 但是当一个路径如
+        "classpath:com/mycompany/**/service-context.xml", 被用于尝试解析时, 解析器将工作在
+        getResource("com/mycompany")返回的 (第一个) URL 上; 如果基本包节点不存在于多个类加载器位置中, 则实际的最终资源
+        可能不再下面. 因此, 在这样的情况下, 使用的 "classpath*:" 最好与 Ant-style 模式一致, 这将搜索包含根路径的所有类路径位置.
 ## PathMatcher 解读
 		基于 String 路径匹配的策略接口.
         使用于 PathMatchingResourcePatternResolver, AbstractUrlHandlerMapping, and WebContentInterceptor.
@@ -371,36 +244,8 @@
         org/springframework/testing/servlet/bla.jsp
         	· com/{filename:\\w+}.jsp		--->	匹配 com/test.jsp 并且将变量 filename 赋值为 "test"
     
-    	注意: 模式和路径必须都是绝对的或者相对的, 以便两者匹配. 因此, 建议此实现的用户清理模式, 以便在它们使用的 context 中使用 "/"
-    作为前缀.
-#### 
-    9 设置 GenericApplicationContext 的 beanFactory
-```java
-	/**
-	 * Create a new GenericApplicationContext.
-	 * @see #registerBeanDefinition
-	 * @see #refresh
-	 */
-	public GenericApplicationContext() {
-		super();
-		this.beanFactory = new DefaultListableBeanFactory();
-	}
-    
-    // 进入 DefaultListableBeanFactory 的无参构造器
-    /**
-	 * Create a new DefaultListableBeanFactory.
-	 */
-	public DefaultListableBeanFactory() {
-		super();
-	}
-    
-    // 初始化 DefaultListableBeanFactory 的 autowireCandidateResolver 属性
-    /** Resolver to use for checking if a bean definition is an autowire candidate. */
-	private AutowireCandidateResolver autowireCandidateResolver = new SimpleAutowireCandidateResolver();
-    
-    // 进入 SimpleAutowireCandidateResolver 的无参构造器 (JDK 默认提供)
-    
-```
+    	注意: 模式和路径必须都是绝对的或者相对的, 以便两者匹配. 因此, 建议此实现的用户清理模式, 以便在它们使用的 context 中
+    使用 "/" 作为前缀.
 	DefaultListableBeanFactory 继承体系
 ![DefaultListableBeanFactory 继承体系](image/DefaultListableBeanFactory继承体系.png)
 ## DefaultListableBeanFactory 解读
@@ -440,26 +285,6 @@
     用于确定特定 bean 定义是否有资格作为特定依赖关系的自动线候选的策略接口。
 ## SimpleAutowireCandidateResolver 解读
 	AutowireCandidateResolver 没有注释支持时使用的实现。此实现仅检查 bean 定义。
-#### 
-    10 进入 DefaultListableBeanFactory 的父类 AbstractAutowireCapableBeanFactory 的无参构造器
-```java
-	/**
-	 * Create a new AbstractAutowireCapableBeanFactory.
-	 */
-	public AbstractAutowireCapableBeanFactory() {
-		super();
-		ignoreDependencyInterface(BeanNameAware.class);
-		ignoreDependencyInterface(BeanFactoryAware.class);
-		ignoreDependencyInterface(BeanClassLoaderAware.class);
-	}
-    
-    // 首先初始化 AbstractAutowireCapableBeanFactory 的属性
-    /** Strategy for creating bean instances. */
-	private InstantiationStrategy instantiationStrategy = new CglibSubclassingInstantiationStrategy();
-	/** Resolver strategy for method parameter names. */
-	@Nullable
-	private ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
-```
 ## AbstractAutowireCapableBeanFactory 解读
 		Abstract bean 工厂的超类，它实现了默认的 bean 创建，具有 RootBeanDefinition 类指定的全部功能。除了
     AbstractBeanFactory#createBean(java.lang.Class <T>) 方法之外，还实现了 AutowireCapableBeanFactory 接口。
@@ -522,58 +347,6 @@
     bean 实例的特定创建过程。或者也可以用作委托的嵌套助手。
 ## SimpleAliasRegistry 解读
 		简单实现 AliasRegistry 接口。用作 BeanDefinitionRegistry 实现的基类。
-#### 
-	11 添加忽略依赖接口
-```java
-	/**
-	 * Create a new AbstractAutowireCapableBeanFactory.
-	 */
-	public AbstractAutowireCapableBeanFactory() {
-		super();
-		ignoreDependencyInterface(BeanNameAware.class);
-		ignoreDependencyInterface(BeanFactoryAware.class);
-		ignoreDependencyInterface(BeanClassLoaderAware.class);
-	}
-	/**
-	 * 忽略给定的自动装配依赖接口。
-	 * 这通常由 application context 用于注册以其他方式解析的依赖关系，
-	 * 例如 BeanFactory 通过 BeanFactoryAware 或 ApplicationContext 通过 ApplicationContextAware。
-	 * 默认情况下，仅忽略 BeanFactoryAware 接口。要忽略其他类型，请为每种类型调用此方法。
-	 *
-	 * @see org.springframework.beans.factory.BeanFactoryAware
-	 * @see org.springframework.context.ApplicationContextAware
-	 */
-	public void ignoreDependencyInterface(Class<?> ifc) {
-		this.ignoredDependencyInterfaces.add(ifc);
-	}
-    /**
-	 * Dependency interfaces to ignore on dependency check and autowire, as Set of
-	 * Class objects. By default, only the BeanFactory interface is ignored.
-	 */
-	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<>();
-```
-    12 进入 AnnotatedBeanDefinitionReader(BeanDefinitionRegistry) 构造器
-```java
-	/**
-	 * Create a new {@code AnnotatedBeanDefinitionReader} for the given registry.
-	 * If the registry is {@link EnvironmentCapable}, e.g. is an {@code ApplicationContext},
-	 * the {@link Environment} will be inherited, otherwise a new
-	 * {@link StandardEnvironment} will be created and used.
-	 * @param registry the {@code BeanFactory} to load bean definitions into,
-	 * in the form of a {@code BeanDefinitionRegistry}
-	 * @see #AnnotatedBeanDefinitionReader(BeanDefinitionRegistry, Environment)
-	 * @see #setEnvironment(Environment)
-	 */
-	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry) {
-		// registry = AnnotationConfigApplicationContext
-		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment
-		this(registry, getOrCreateEnvironment(registry));
-	}
-    // 初始化 AnnotatedBeanDefinitionReader 的属性
-    private BeanNameGenerator beanNameGenerator = new AnnotationBeanNameGenerator();
-
-	private ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
-```
 ## AnnotatedBeanDefinitionReader 解读
 		方便的适配器，用于注解 bean 类的编程注册。这是 ClassPathBeanDefinitionScanner的替代方法，应用相同的注解分辨率，
     但仅适用于显式注册的类。
@@ -590,18 +363,6 @@ com.xyz.FooServiceImpl -> fooServiceImpl
 ```
 ## BeanNameGenerator 解读
     用于为 bean 定义生成 beanName 的策略接口.
-#### 
-    13 进入 AnnotationScopeMetadataResolver 的无参构造器
-```java
-	/**
-	 * Construct a new {@code AnnotationScopeMetadataResolver}.
-	 * @see #AnnotationScopeMetadataResolver(ScopedProxyMode)
-	 * @see ScopedProxyMode#NO
-	public AnnotationScopeMetadataResolver() {
-    	// 设置 defaultProxyMode 属性
-		this.defaultProxyMode = ScopedProxyMode.NO;
-	}
-```
 ## AnnotationScopeMetadataResolver 解读
     ScopeMetadataResolver 实现, 默认情况下检查 bean 类上是否存在 Spring 的 @Scope 注解.
     检查的确切的注解类型可通过 setScopeAnnotationType(Class) 配置.
@@ -613,116 +374,6 @@ com.xyz.FooServiceImpl -> fooServiceImpl
 ## ScopeMetadata 解读
     描述 Spring 管理的 bean 的 scope 特征, 包括范围名称和范围代理的行为.
     默认的 Scope 是 "singleton", 默认情况下不创建 scoped-proxy.
-#### 
-    14 回到 AnnotatedBeanDefinitionReader(BeanDefinitionRegistry) 构造器
-```java
-	/**
-	 * 使用给定的 registry 创建一个 AnnotatedBeanDefinitionReader.
-	 * 如果 registry 是 EnvironmentCapable (如, ApplicationContext),
-	 * Environment 将被遗传, 否则将使用一个 StandardEnvironment
-	 *
-	 * @param registry the {@code BeanFactory} to load bean definitions into,
-	 * in the form of a {@code BeanDefinitionRegistry}
-	 * @see #AnnotatedBeanDefinitionReader(BeanDefinitionRegistry, Environment)
-	 * @see #setEnvironment(Environment)
-	 */
-	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry) {
-		// registry = AnnotationConfigApplicationContext
-		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment
-		this(registry, getOrCreateEnvironment(registry));
-	}
-    /**
-	 * Get the Environment from the given registry if possible, otherwise return a new
-	 * StandardEnvironment.
-	 */
-	private static Environment getOrCreateEnvironment(BeanDefinitionRegistry registry) {
-		// registry = AnnotationConfigApplicationContext
-		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
-		if (registry instanceof EnvironmentCapable) {
-			return ((EnvironmentCapable) registry).getEnvironment();
-		}
-		return new StandardEnvironment();
-	}
-    /**
-	 * Create a new {@code AnnotatedBeanDefinitionReader} for the given registry and using
-	 * the given {@link Environment}.
-	 * @param registry the {@code BeanFactory} to load bean definitions into,
-	 * in the form of a {@code BeanDefinitionRegistry}
-	 * @param environment the {@code Environment} to use when evaluating bean definition
-	 * profiles.
-	 * @since 3.1
-	 */
-	public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry, Environment environment) {
-		// registry = AnnotationConfigApplicationContext, environment = StandardEnvironment
-		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
-		Assert.notNull(environment, "Environment must not be null");
-		this.registry = registry;
-		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment, arg2 = null
-		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
-		// 这个方法的核心就是注册Spring内置的多个Bean
-		// 这里仅仅是注册，可以简单的理解为把一些原料放入工厂，工厂还没有真正的去生产。
-		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
-	}
-    /**
-	 * Create a new {@link ConditionEvaluator} instance.
-	 */
-	public ConditionEvaluator(@Nullable BeanDefinitionRegistry registry,
-			@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
-		// arg0 = AnnotationConfigApplicationContext, arg1 = StandardEnvironment, arg2 = null
-		this.context = new ConditionContextImpl(registry, environment, resourceLoader);
-	}
-    public ConditionContextImpl(@Nullable BeanDefinitionRegistry registry,
-            @Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
-        // registry = AnnotationConfigApplicationContext,
-        // environment = StandardEnvironment, resourceLoader = null
-        this.registry = registry;
-        // 推断 beanFactory ，arg0 = AnnotationConfigApplicationContext
-        this.beanFactory = deduceBeanFactory(registry);
-        this.environment = (environment != null ? environment : deduceEnvironment(registry));
-        // 推断 resourceLoader，arg0 = AnnotationConfigApplicationContext
-        this.resourceLoader = (resourceLoader != null ? resourceLoader : deduceResourceLoader(registry));
-        // 推断 classLoader，arg0 = null, arg1 = DefaultListableBeanFactory
-        this.classLoader = deduceClassLoader(resourceLoader, this.beanFactory);
-    }
-    @Nullable
-    private ConfigurableListableBeanFactory deduceBeanFactory(@Nullable BeanDefinitionRegistry source) {
-		// source = AnnotationConfigApplicationContext
-        if (source instanceof ConfigurableListableBeanFactory) {
-            return (ConfigurableListableBeanFactory) source;
-        }
-        // true
-        if (source instanceof ConfigurableApplicationContext) {
-			// DefaultListableBeanFactory
-            return (((ConfigurableApplicationContext) source).getBeanFactory());
-        }
-        return null;
-    }
-    private ResourceLoader deduceResourceLoader(@Nullable BeanDefinitionRegistry source) {
-		// source = AnnotationConfigApplicationContext
-        if (source instanceof ResourceLoader) {
-            return (ResourceLoader) source;
-        }
-        return new DefaultResourceLoader();
-	}
-    @Nullable
-    private ClassLoader deduceClassLoader(@Nullable ResourceLoader resourceLoader,
-            @Nullable ConfigurableListableBeanFactory beanFactory) {
-		// resourceLoader = null, beanFactory = DefaultListableBeanFactory
-        if (resourceLoader != null) {
-            ClassLoader classLoader = resourceLoader.getClassLoader();
-            if (classLoader != null) {
-                return classLoader;
-            }
-        }
-		// true
-        if (beanFactory != null) {
-			// sun.misc.Launcher.AppClassLoader
-            return beanFactory.getBeanClassLoader();
-        }
-        return ClassUtils.getDefaultClassLoader();
-    }
-    
-```
 ## StandardEnvironment 解读
 		适用于“标准”（即非Web）应用程序的环境实现。
         除了可配置环境的常用功能（如属性解析和与配置文件相关的操作）之外，此实现还配置两个默认属性源，按以下顺序搜索：
@@ -838,149 +489,17 @@ SPRING_PROFILES_ACTIVE=p1 java -classpath ... MyApp
 ## PropertyPlaceholderConfigurer 解读
 ## AnnotationConfigApplicationContext 解读
 ## AnnotationConfigWebApplicationContext 解读
-#### 
-    15 进入 AnnotationConfigUtils#registerAnnotationConfigProcessors(BeanDefinitionRegistry)
-```java
-	/**
-	 * 在给定的注册器中注册所有向应的 注解后处理器
-	 * @param registry the registry to operate on
-	 */
-	public static void registerAnnotationConfigProcessors(BeanDefinitionRegistry registry) {
-		// registry = AnnotationConfigApplicationContext
-		// arg0 = AnnotationConfigApplicationContext, arg1 = null
-		registerAnnotationConfigProcessors(registry, null);
-	}
-    /**
-	 * Register all relevant annotation post processors in the given registry.
-	 * @param registry the registry to operate on
-	 * @param source the configuration source element (already extracted)
-	 * that this registration was triggered from. May be {@code null}.
-	 * @return a Set of BeanDefinitionHolders, containing all bean definitions
-	 * that have actually been registered by this call
-	 */
-	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
-			BeanDefinitionRegistry registry, @Nullable Object source) {
-		// registry = AnnotationConfigApplicationContext, source = null
-		// DefaultListableBeanFactory
-		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
-		// true
-		if (beanFactory != null) {
-			// true
-			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
-				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
-			}
-			if (!(beanFactory.getAutowireCandidateResolver() instanceof
-            		ContextAnnotationAutowireCandidateResolver)) {
-				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
-			}
-		}
 
-		// 加入了一堆默认的 BeanDefinitionHolder
-		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
 
-		// true
-		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			// 这个 Bean 的注册是最重要的。
-			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
-			def.setSource(source);
-			// BeanDefinitionHolder
-			beanDefs.add(registerPostProcessor(registry, def, CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME));
-		}
-
-		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			RootBeanDefinition def = new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class);
-			def.setSource(source);
-			beanDefs.add(registerPostProcessor(registry, def, AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME));
-		}
-
-		// Check for JSR-250 support, and if present add the CommonAnnotationBeanPostProcessor.
-		if (jsr250Present && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			RootBeanDefinition def = new RootBeanDefinition(CommonAnnotationBeanPostProcessor.class);
-			def.setSource(source);
-			beanDefs.add(registerPostProcessor(registry, def, COMMON_ANNOTATION_PROCESSOR_BEAN_NAME));
-		}
-
-		// Check for JPA support, and if present add the PersistenceAnnotationBeanPostProcessor.
-		if (jpaPresent && !registry.containsBeanDefinition(PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			RootBeanDefinition def = new RootBeanDefinition();
-			try {
-				def.setBeanClass(ClassUtils.forName(PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME,
-						AnnotationConfigUtils.class.getClassLoader()));
-			}
-			catch (ClassNotFoundException ex) {
-				throw new IllegalStateException(
-						"Cannot load optional framework class: " + PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME, ex);
-			}
-			def.setSource(source);
-			beanDefs.add(registerPostProcessor(registry, def, PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME));
-		}
-
-		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
-			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
-			def.setSource(source);
-			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_PROCESSOR_BEAN_NAME));
-		}
-
-		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
-			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
-			def.setSource(source);
-			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_FACTORY_BEAN_NAME));
-		}
-
-		return beanDefs;
-	}
-```
 ## AnnotationConfigUtils 解读
-    
-    
-    
-    
-    
-    
-    
-```java
 
-```
-    
-    
-    
-    
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
