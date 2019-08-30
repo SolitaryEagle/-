@@ -487,9 +487,31 @@ SPRING_PROFILES_ACTIVE=p1 java -classpath ... MyApp
     	有关操作环境属性源的详细信息，请参阅 ConfigurableEnvironment 和相关的javadoc。
 ## ConversionService 解读
 ## PropertyPlaceholderConfigurer 解读
-## AnnotationConfigApplicationContext 解读
 ## AnnotationConfigWebApplicationContext 解读
-
+## ConfigurationClassPostProcessor 解读
+## BeanFactoryPostProcessor 解读
+## ImportSelector 解读
+## ImportBeanDefinitionRegistrar 解读
+## BeanPostProcessor 解读
+## AutowiredAnnotationBeanPostProcessor 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
+## 解读
 
 ## AnnotationConfigUtils 解读
 
