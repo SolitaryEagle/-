@@ -485,6 +485,15 @@ SPRING_PROFILES_ACTIVE=p1 java -classpath ... MyApp
     PropertiesLoaderSupport.setLocations（org.springframework.core.io.Resource ...）等）都将添加为PropertySource。
     本地属性的搜索优先级基于 localOverride 属性的值，默认情况下为 false，表示在所有环境属性源之后最后搜索本地属性。
     	有关操作环境属性源的详细信息，请参阅 ConfigurableEnvironment 和相关的javadoc。
+
+
+
+
+
+
+
+
+
 ## ConversionService 解读
 ## PropertyPlaceholderConfigurer 解读
 ## AnnotationConfigWebApplicationContext 解读
@@ -494,15 +503,42 @@ SPRING_PROFILES_ACTIVE=p1 java -classpath ... MyApp
 ## ImportBeanDefinitionRegistrar 解读
 ## BeanPostProcessor 解读
 ## AutowiredAnnotationBeanPostProcessor 解读
-## 解读
-## 解读
-## 解读
-## 解读
-## 解读
-## 解读
-## 解读
-## 解读
-## 解读
+## DisposableBean 解读
+## BeanExpressionResolver 解读
+## SmartContextLoader 解读
+## DelegatingSmartContextLoader 解读
+## WebDelegatingSmartContextLoader 解读
+## AbstractContextLoader 解读
+## GenericXmlContextLoader 解读
+## AnnotationConfigContextLoader 解读
+## AnnotationConfigWebContextLoader 解读
+## TaskExecutor 解读
+## AsyncConfigurer 解读
+## AsyncConfigurerSupport 解读
+## AdviceMode 解读
+## AsyncAnnotationBeanPostProcessor 解读
+## Ordered 解读
+## Scheduled 解读
+## SchedulingConfiguration 解读
+## SchedulingConfigurer 解读
+## ScheduledTaskRegistrar 解读
+## Trigger 解读
+## ScheduledAnnotationBeanPostProcessor 解读
+## TransactionInterceptor 解读
+## TransactionManagementConfigurer 解读
+## TransactionManagementConfigurationSelector 解读
+## ProxyTransactionManagementConfiguration 解读
+## AspectJTransactionManagementConfiguration 解读
+## Aspect 解读
+## WebMvcConfigurer 解读
+## DelegatingWebMvcConfiguration 解读
+## WebMvcConfigurationSupport 解读
+## AnnotationAwareOrderComparator 解读
+## OrderUtils 解读
+## Priority 解读
+## FilterType 解读
+## AsyncAnnotationAdvisor 解读
+## AnnotationAsyncExecutionInterceptor 解读
 ## 解读
 ## 解读
 ## 解读
