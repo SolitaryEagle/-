@@ -734,6 +734,143 @@ MyBean myBean = ctx.getBean(MyBean.class);
     上下文中作为bean存在，这通常是组件扫描被大量应用的情况。
     	请注意，除非正在使用组件扫描，否则在类级别使用@Primary无效。如果通过XML声明@ Primary-annotated类，则忽略
     @Primary注释元数据，而忽略<bean primary =“true | false”/>。
+## @Qualifier 解读
+		在自动装配时，此注释可以在字段或参数上用作候选bean的限定符。它还可以用于注释其他自定义注释，然后可以将其用作限定符。
+---
+	属性:
+    	1. String value: ""
+### QualifierAnnotationAutowireCandidateResolver 解读
+		AutowireCandidateResolver实现，它将bean定义限定符与要自动装配的字段或参数上的限定符注释相匹配。还通过值注释
+    支持建议的表达式值。
+		如果可用，还支持JSR-330的Qualifier注释。
+## @ResponseBody 解读
+		指示方法返回值的注释应绑定到Web响应主体。支持带注释的处理程序方法。
+        从版本4.0开始，此注释也可以添加到类型级别，在这种情况下，它是继承的，不需要在方法级别添加。
+## @ComponentScan 解读
+		配置组件扫描指令以与@Configuration类一起使用。提供与Spring XML <context：component-scan>元素并行的支持。
+        可以指定basePackageClasses（）或basePackages（）（或其别名value（））来定义要扫描的特定包。如果未定义特定包，
+    则将从声明此批注的类的包进行扫描。
+    	请注意，<context：component-scan>元素具有annotation-config属性;但是，这个注释没有。这是因为在使用
+    @ComponentScan的几乎所有情况下，都假定默认注释配置处理（例如处理@Autowired和朋友）。此外，使用
+	AnnotationConfigApplicationContext时，注释配置处理器始终处于注册状态，这意味着将忽略在@ComponentScan级别禁用
+    它们的任何尝试。
+		有关用法示例，请参阅@ Configuration的Javadoc。
+---
+	属性:
+		1. Class<?>[] basePackageClasses: {}
+			basePackages（）的类型安全替代方法，用于指定要扫描带注释组件的包。将扫描指定的每个类的包。
+            考虑在每个包中创建一个特殊的无操作标记类或接口，除了被该属性引用之外没有其它用途。
+
+        2. String[] basePackages: {}
+			用于扫描带注释组件的基础包。
+            value（）是此属性的别名（并与之互斥）。
+            使用basePackageClasses（）作为基于String的包名称的类型安全替代方法。
+
+		3. ComponentScan.Filter[] excludeFilters: {}
+			指定哪些类型不符合组件扫描的条件。
+
+		4. ComponentScan.Filter[] includeFilters: {}
+			指定哪些类型符合组件扫描的条件。
+            进一步将候选组件集从basePackages（）中的所有内容缩小到与给定过滤器匹配的基本包中的所有内容。
+            请注意，除了默认过滤器（如果已指定），还将应用这些过滤器。将包含与给定过滤器匹配的指定基础包下的任何类型，即使
+        它与默认过滤器不匹配（即未使用@Component注释）。
+
+		5. boolean lazyInit: false
+			指定是否应注册扫描的bean以进行延迟初始化。
+            默认为false;需要时将其切换为true。
+
+		6. Class<? extends BeanNameGenerator> nameGenerator: 
+    			org.springframework.beans.factory.support.BeanNameGenerator.class
+			BeanNameGenerator类，用于命名Spring容器中检测到的组件。
+            BeanNameGenerator接口的默认值本身表示用于处理此@ComponentScan注释的扫描程序应使用其继承的bean名称生成器，
+        例如，默认的AnnotationBeanNameGenerator或在引导时提供给应用程序上下文的任何自定义实例。
+
+		7. String resourcePattern: "**/*.class"
+			控制符合组件检测条件的类文件。
+            考虑使用includeFilters（）和excludeFilters（）来实现更灵活的方法。
+
+		8. ScopedProxyMode scopedProxy: org.springframework.context.annotation.ScopedProxyMode.DEFAULT
+			指示是否应为检测到的组件生成代理，这在以代理样式方式使用范围时可能是必需的。
+            默认值是遵循用于执行实际扫描的组件扫描程序的默认行为。
+            请注意，设置此属性会覆盖为scopeResolver（）设置的任何值。
+
+		9. Class<? extends ScopeMetadataResolver> scopeResolver: 
+				org.springframework.context.annotation.AnnotationScopeMetadataResolver.class
+            ScopeMetadataResolver用于解析检测到的组件的范围。
+
+		10. boolean useDefaultFilters: true
+			指示是否应启用使用@Component @Repository，@Service或@Controller注释的类的自动检测。
+
+		11. String[] value: {}
+			basePackages（）的别名。
+            如果不需要其他属性，则允许更简洁的注释声明 - 例如，@ComponentScan（“org.my.pkg”）而不是
+        @ComponentScan（basePackages =“org.my.pkg”）。
+### ComponentScanBeanDefinitionParser 解读
+		<context：component-scan />元素的解析器。
+## @ComponentScans 解读
+		用于聚合多个ComponentScan注释的容器注释。
+        可以原生使用，声明几个嵌套的ComponentScan注释。也可以与Java 8对可重复注释的支持结合使用，其中ComponentScan
+    可以在同一方法上简单地多次声明，隐式生成此容器注释。
+---
+	属性:
+    	1. ComponentScan[] value
+## @ComponentScan.Filter 解读
+		声明要用作包含过滤器或排除过滤器的类型过滤器。
+---
+	属性:
+    	1. Class<?>[] classes: {}
+			要用作过滤器的类。
+            下表说明了如何根据type（）属性的配置值解释类。
+            	ANNOTATION  -->  注释本身
+                ASSIGNABLE_TYPE -->  检测到组件的类型应该可以分配给
+                CUSTOM  -->  TypeFilter的实现
+            指定多个类时，将应用OR逻辑 - 例如，“包含使用@Foo OR @Bar注释的类型”。
+            Custom TypeFilters可以选择实现以下任何Aware接口，并在匹配之前调用它们各自的方法：
+            	EnvironmentAware
+				BeanFactoryAware
+				BeanClassLoaderAware
+				ResourceLoaderAware
+			允许指定零类，但不会影响组件扫描。
+
+		2. String[] pattern: {}
+			用于过滤器的模式（或模式），作为指定Class值（）的替代方法。
+            如果type（）设置为ASPECTJ，则这是一个AspectJ类型模式表达式。如果type（）设置为REGEX，则这是要匹配的完全
+        限定类名的正则表达式模式。
+
+		3. FilterType type: org.springframework.context.annotation.FilterType.ANNOTATION
+			要使用的过滤器类型。
+            默认为FilterType.ANNOTATION。
+
+		4. Class<?>[] value: {}
+			classes() 的别名。
+## @Lazy 解读
+		指示是否要延迟初始化bean。
+        可以在任何直接或间接使用@Component注释的类或使用@Bean注释的方法上使用。
+        如果@Component或@Bean定义中不存在此批注，则会发生急切初始化。如果存在并设置为true，则@Bean或@Component将不会
+    被初始化，直到被另一个bean引用或从封闭的BeanFactory中显式检索。如果存在并设置为false，那么bean将在启动时由bean工厂
+    实例化，这些工厂执行单例的初始化。
+    	如果@Configuration类中存在Lazy，则表示该@Configuration中的所有@Bean方法都应该被懒惰地初始化。如果在
+    @Lazy-annotated @Configuration类中的@Bean方法中存在@Lazy并且为false，则表示覆盖'default lazy'行为并且应该急
+    切地初始化bean。
+    	除了它的组件初始化角色之外，这个注释还可以放在标有Autowired或Inject的注入点上：在该上下文中，它导致为所有受影响
+    的依赖项创建一个惰性解析代理，作为使用ObjectFactory的替代方法或提供者。
+---
+	属性:
+    	1. boolean value: true
+			是否应该进行延迟初始化。
+## @Value 解读
+		字段或方法/构造函数参数级别的注释，指示受影响参数的默认值表达式。
+        通常用于表达式驱动的依赖注入。还支持动态解析处理程序方法参数，例如在Spring MVC中。
+        常见用例是使用＃{systemProperties.myProp}样式表达式分配默认字段值。
+        请注意，@Value注释的实际处理是由BeanPostProcessor执行的，这反过来意味着您不能在BeanPostProcessor或
+    BeanFactoryPostProcessor类型中使用@Value。请参考javadoc获取AutowiredAnnotationBeanPostProcessor类
+    （默认情况下，它会检查是否存在此批注）。
+---
+	属性:
+    	1. String value: 
+			实际值表达式：例如＃{systemProperties.myProp}。
+
+
 
 
 
@@ -763,29 +900,9 @@ MyBean myBean = ctx.getBean(MyBean.class);
     		2. Spring WebFlux Method Arguments and Return Values
 		注意：此批注可以在类和方法级别使用。在大多数情况下，在方法级别，应用程序将更喜欢使用HTTP方法特定变体之一
     @GetMapping，@PostMapping，@PutMapping，@DelaMapping或@PatchMapping。
-## RequestMappingHandlerMapping 解读
-## RequestMappingHandlerAdapter 解读
 
 
-## @ComponentScan 解读
 
-
-## @Autowired 解读
-## @Inject 解读
-## @PropertySource 解读
-## @Import 解读
-## @Profile 解读
-## @ImportResource 解读
-## @ContextConfiguration 解读
-## @EnableAsync 解读
-## @EnableScheduling 解读
-## @EnableTransactionManagement 解读
-## @EnableAspectJAutoProxy 解读
-## @EnableWebMvc 解读
-## @Scope 解读
-## 解读
-## 解读
-## 解读
 
 
 
