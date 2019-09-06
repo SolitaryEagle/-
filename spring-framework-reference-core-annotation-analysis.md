@@ -947,31 +947,382 @@ MyBean myBean = ctx.getBean(MyBean.class);
 
 		3. String[] value: {}
             locations() 的别名。
+## @PropertySource 解读
+		注释提供了一种方便的声明机制，用于将PropertySource添加到Spring的环境中。与@Configuration类一起使用。
+---
+	Example usage:
+```java
+ @Configuration
+ @PropertySource("classpath:/com/myco/app.properties")
+ public class AppConfig {
 
+     @Autowired
+     Environment env;
 
+     @Bean
+     public TestBean testBean() {
+         TestBean testBean = new TestBean();
+         testBean.setName(env.getProperty("testbean.name"));
+         return testBean;
+     }
+ }
+```
+		请注意，Environment对象是@Autowired到配置类中，然后在填充TestBean对象时使用。鉴于上面的配置，对
+    testBean.getName（）的调用将返回“myTestBean”。
+---
+	Resolving ${...} placeholders in <bean> and @Value annotations:
+    	为了使用PropertySource中的属性解析<bean>定义或@Value注释中的$ {...}占位符，必须确保在ApplicationContext
+    使用的BeanFactory中注册了适当的嵌入值解析器。在XML中使用<context：property-placeholder>时会自动发生这种情况。
+    使用@Configuration类时，可以通过静态@Bean方法显式注册PropertySourcesPlaceholderConfigurer来实现。但请注意，
+    通常只有在需要自定义配置（如占位符语法等）时才需要通过静态@Bean方法显式注册
+    PropertySourcesPlaceholderConfigurer。请参阅@Configuration的javadocs中的“使用外部化值”部分和“a关于详细信息
+    和示例，请注意@ Bean的javadocs的BeanFactoryPostProcessor-返回@Bean方法。
+---
+	Resolving ${...} placeholders within @PropertySource resource locations:
+    	存在于@PropertySource资源位置的任何$ {...}占位符将根据已针对环境注册的属性源集合进行解析。例如：
+```java
+ @Configuration
+ @PropertySource("classpath:/com/${my.placeholder:default/path}/app.properties")
+ public class AppConfig {
 
+     @Autowired
+     Environment env;
 
+     @Bean
+     public TestBean testBean() {
+         TestBean testBean = new TestBean();
+         testBean.setName(env.getProperty("testbean.name"));
+         return testBean;
+     }
+ }
+```
+		假设“my.placeholder”存在于已经注册的一个属性源中，例如系统属性或环境变量，占位符将被解析为相应的值。如果没有，
+    则“default / path”将用作默认值。表示默认值（由冒号“：”分隔）是可选的。如果未指定缺省值且无法解析属性，则将抛出
+    IllegalArgumentException。
+---
+	A note on property overriding with @PropertySource:
+    	如果给定的属性键存在于多个.properties文件中，则处理的最后一个@PropertySource批注将“赢”并覆盖。
+        例如，给定两个属性文件a.properties和b.properties，请考虑以下两个使用@PropertySource注释引用它们的配置类：
+```java
+ @Configuration
+ @PropertySource("classpath:/com/myco/a.properties")
+ public class ConfigA { }
 
+ @Configuration
+ @PropertySource("classpath:/com/myco/b.properties")
+ public class ConfigB { }
+```
+		覆盖顺序取决于这些类在应用程序上下文中注册的顺序。
+```java
+ AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
+ ctx.register(ConfigA.class);
+ ctx.register(ConfigB.class);
+ ctx.refresh();
+```
+		在上面的场景中，b.properties中的属性将覆盖a.properties中存在的任何重复项，因为ConfigB最后已注册。
+        在某些情况下，使用@PropertySource注释时严格控制属性源顺序可能是不可能或不切实际的。例如，如果上面的
+    @Configuration类是通过组件扫描注册的，则排序很难预测。在这种情况下 - 如果覆盖很重要 - 建议用户回退使用编程的
+    PropertySource API。有关详细信息，请参阅ConfigurableEnvironment和MutablePropertySources javadocs。
+		注意：根据Java 8约定，此注释是可重复的。但是，所有这些@PropertySource注释都需要在同一级别声明：直接在配置类上
+    或在同一自定义注释中的元注释。不建议混合直接注释和元注释，因为直接注释将有效地覆盖元注释。
+---
+	属性:
+    	1. String[] value: 
+			指示要加载的属性文件的资源位置。
+            支持传统和基于XML的属性文件格式 - 例如，
+        “classpath：/com/myco/app.properties”或“file：/path/to/file.xml”。
+        	不允许使用资源位置通配符（例如** / *。属性）;每个位置必须只评估一个.properties资源。
+            ${...}占位符将针对已在环境中注册的任何/所有财产来源解决。见上面的例子。
+            每个位置将作为其自己的属性源添加到封闭环境中，并按声明的顺序添加。
 
+		2. String encoding: ""
+			给定资源的特定字符编码，例如“UTF-8”。
 
+		3. Class<? extends PropertySourceFactory> factory: 
+				org.springframework.core.io.support.PropertySourceFactory.class
+			指定自定义PropertySourceFactory（如果有）。
+            默认情况下，将使用标准资源文件的默认工厂。
 
+		4. boolean ignoreResourceNotFound: false
+			指示是否应忽略找不到属性资源的错误。
+            如果属性文件是完全可选的，则true为合适。默认值为false。
 
-## @RequestMapping 解读
-		使用灵活方法签名将Web请求映射到请求处理类中的方法的注释。
-        Spring MVC和Spring WebFlux都通过RequestMappingHandlerMapping和RequestMappingHandlerAdapter在它们
-    各自的模块和包结构中支持这个注释。有关每个支持的处理程序方法参数和返回类型的确切列表，请使用下面的参考文档链接：
-    		1. Spring MVC Method Arguments and Return Values
-    		2. Spring WebFlux Method Arguments and Return Values
-		注意：此批注可以在类和方法级别使用。在大多数情况下，在方法级别，应用程序将更喜欢使用HTTP方法特定变体之一
-    @GetMapping，@PostMapping，@PutMapping，@DelaMapping或@PatchMapping。
+		5. String name: ""
+			指示此属性源的名称。如果省略，将根据底层资源的描述生成名称。
+## @EnableLoadTimeWeaving 解读
+		为此应用程序上下文激活Spring LoadTimeWeaver，可用作名为“loadTimeWeaver”的bean，类似于Spring XML中的
+    <context：load-time-weaver>元素。
+    	要在@Configuration类上使用;最简单的例子如下：
+```java
+ @Configuration
+ @EnableLoadTimeWeaving
+ public class AppConfig {
 
+     // application-specific @Bean definitions ...
+ }
+```
+		上面的示例等效于以下Spring XML配置：
+```xml
+ <beans>
 
+     <context:load-time-weaver/>
 
+     <!-- application-specific <bean> definitions -->
 
+ </beans>
+```
+	The LoadTimeWeaverAware interface:
+    	实现LoadTimeWeaverAware接口的任何bean将自动接收LoadTimeWeaver引用;例如，Spring的JPA bootstrap支持。
+---
+	Customizing the LoadTimeWeaver:
+    	默认编织器是自动确定的：请参阅DefaultContextLoadTimeWeaver。
+        要自定义使用的weaver，使用@EnableLoadTimeWeaving注释的@Configuration类也可以实现
+    LoadTimeWeavingConfigurer接口，并通过#getLoadTimeWeaver方法返回自定义LoadTimeWeaver实例：
+```java
+ @Configuration
+ @EnableLoadTimeWeaving
+ public class AppConfig implements LoadTimeWeavingConfigurer {
 
+     @Override
+     public LoadTimeWeaver getLoadTimeWeaver() {
+         MyLoadTimeWeaver ltw = new MyLoadTimeWeaver();
+         ltw.addClassTransformer(myClassFileTransformer);
+         // ...
+         return ltw;
+     }
+ }
+```
+		上面的示例可以与以下Spring XML配置进行比较：
+```xml
+ <beans>
 
+     <context:load-time-weaver weaverClass="com.acme.MyLoadTimeWeaver"/>
 
+ </beans>
+```
+		代码示例与XML示例的不同之处在于它实际上实例化了MyLoadTimeWeaver类型，这意味着它还可以配置实例，例如调用
+    #addClassTransformer方法。这演示了基于代码的配置方法如何通过直接编程访问更加灵活。
+---
+	Enabling AspectJ-based weaving:
+    	可以使用aspectjWeaving（）属性启用AspectJ加载时编织，这将导致通过
+    LoadTimeWeaver.addTransformer（java.lang.instrument.ClassFileTransformer）注册AspectJ类转换器。如果
+    类路径中存在“META-INF / aop.xml”资源，则默认情况下将激活AspectJ编织。例：
+```java
+ @Configuration
+ @EnableLoadTimeWeaving(aspectjWeaving=ENABLED)
+ public class AppConfig {
+ }
+```
+		上面的示例可以与以下Spring XML配置进行比较：
+```java
+ <beans>
 
+     <context:load-time-weaver aspectj-weaving="on"/>
 
+ </beans>
+```
+		这两个示例相当于一个重要的例外：在XML情况下，当aspectj-weaving为“on”时，隐式启用
+    <context：spring-configured>的功能。使用@EnableLoadTimeWeaving（aspectjWeaving = ENABLED）时不会发生这种
+    情况。相反，您必须显式添加@EnableSpringConfigured（包含在spring-aspects模块中）
+---
+	属性:
+    	1. EnableLoadTimeWeaving.AspectJWeaving aspectjWeaving:
+    			org.springframework.context.annotation.EnableLoadTimeWeaving.AspectJWeaving.AUTODETECT
+			是否应启用AspectJ编织。
+## @EventListener 解读
+		将方法标记为应用程序事件的侦听器的注释。
+        如果带注释的方法支持单个事件类型，则该方法可以声明反映要侦听的事件类型的单个参数。如果带注释的方法支持多种事件
+    类型，则此批注可以使用classes属性引用一个或多个受支持的事件类型。有关更多详细信息，请参阅classes（）javadoc。
+    	事件可以是ApplicationEvent实例以及任意对象。
+        @EventListener注释的处理是通过内部EventListenerMethodProcessor bean执行的，该bean在使用Java配置时自动
+    注册，或者在使用XML配置时通过<context：annotation-config />或<context：component-scan />元素手动注册。
+    	带注释的方法可能具有非void返回类型。当它们执行时，方法调用的结果将作为新事件发送。如果返回类型是数组或集合，则每个
+    元素都将作为新的单个事件发送。
+    	还可以定义调用特定事件的侦听器的顺序。为此，请在此事件侦听器注释旁边添加Spring的常用@Order注释。
+        虽然事件侦听器可能声明它会抛出任意异常类型，但从事件侦听器抛出的任何已检查异常都将包含在
+    UndeclaredThrowableException中，因为事件发布者只能处理运行时异常。
+---
+	属性:
+    	1. Class<?>[] classes: {}
+            此侦听器处理的事件类。
+            如果使用单个值指定此属性，则带注释的方法可以选择接受单个参数。但是，如果使用多个值指定此属性，则带注释的方法
+        不得声明任何参数。
 
+		2. String condition: ""
+			Spring Expression Language（SpEL）属性，用于使事件处理成为条件。
+            默认为“”，表示始终处理事件。
+            SpEL表达式针对提供以下元数据的专用上下文进行评估：
+				1. #root.event，＃root.args分别用于引用ApplicationEvent和方法参数。
+				2. 方法参数可以通过索引访问。例如，可以通过#root.args [0]，＃p0或＃a0访问第一个参数。如果该信息可用，
+            也可以通过名称访问参数。
 
+		3. Class<?>[] value: {}
+			classes() 的别名.
+## @Async 解读
+		将方法标记为异步执行候选的注释。也可以在类型级别使用，在这种情况下，所有类型的方法都被视为异步。
+        就目标方法签名而言，支持任何参数类型。但是，返回类型被限制为void或Future。在后一种情况下，您可以声明更具体的
+    ListenableFuture或CompletableFuture类型，这些类型允许与异步任务进行更丰富的交互，并通过进一步的处理步骤立即组合。
+    	从代理返回的Future句柄将是一个实际的异步Future，可用于跟踪异步方法执行的结果。但是，由于目标方法需要实现相同的
+    签名，因此必须返回一个临时的Future句柄，该句柄只传递一个值：Spring的AsyncResult，EJB 3.1的AsyncResult或
+    CompletableFuture.completedFuture（Object）。
+---
+	属性:
+    	1. String value: ""
+			指定异步操作的限定符值。
+            可用于确定执行此方法时要使用的目标执行程序，匹配特定Executor或TaskExecutor bean定义的限定符值
+        （或bean名称）。
+        	在类级别@Async注释上指定时，表示给定的执行程序应该用于类中的所有方法。方法级别使用Async＃值始终覆盖在类
+        级别设置的任何值。
+### AsyncAnnotationAdvisor 解读
+		Advisor通过Async批注激活异步方法执行。此批注可用于实现类和服务接口中的方法和类型级别。
+        此顾问程序也检测EJB 3.1 javax.ejb.Asynchronous批注，完全像Spring自己的Async一样对待它。此外，可以通过
+    “asyncAnnotationType”属性指定自定义异步注释类型。
+### AsyncAnnotationBeanPostProcessor 解读
+		Bean后处理器通过向公开的代理（现有的AOP代理或实现所有目标的新生成的代理）添加相应的AsyncAnnotationAdvisor，
+    自动将异步调用行为应用于在类或方法级别承载Async批注的任何bean。接口）。
+    	可以提供负责异步执行的TaskExecutor以及指示应该异步调用方法的注释类型。如果未指定注释类型，则此后处理器将检测
+    Spring的@Async注释以及EJB 3.1 javax.ejb.Asynchronous注释。
+		对于具有void返回类型的方法，调用方无法访问异步方法调用期间抛出的任何异常。可以指定
+    AsyncUncaughtExceptionHandler来处理这些情况。
+    	注意：默认情况下，底层异步顾问程序在现有顾问程序之前应用，以便在调用链中尽早切换到异步执行。
+## @Order 解读
+		@Order定义带注释的组件的排序顺序。
+        value（）是可选的，表示Ordered接口中定义的订单值。较低的值具有较高的优先级默认值为
+    Ordered.LOWEST_PRECEDENCE，表示最低优先级（丢失到任何其他指定的订单值）。
+    	注意：自Spring 4.0以来，Spring中的多种组件都支持基于注释的排序，即使对于目标组件的订单值（来自其目标类或来自
+    其@Bean方法）的集合注入也是如此。虽然此类订单值可能影响注入点的优先级，但请注意它们不会影响单例启动顺序，这是由依赖
+    关系和@DependsOn声明（影响运行时确定的依赖关系图）确定的正交关注点。
+		从Spring 4.1开始，标准优先级注释可用作订购方案中此注释的替代品。请注意，当必须选择单个元素时，@Priority可能
+    具有其他语义（请参阅AnnotationAwareOrderComparator.getPriority（java.lang.Object））。
+    	或者，也可以通过Ordered接口在每个实例的基础上确定订单值，允许配置确定的实例值而不是附加到特定类的硬编码值。
+        有关非有序对象的排序语义的详细信息，请参阅OrderComparator的javadoc。
+---
+	属性:
+    	1. int value: 2147483647
+			订单价值。
+            默认值为Ordered.LOWEST_PRECEDENCE。
+## @NumberFormat 解读
+		声明字段或方法参数应格式化为数字。
+        支持按样式或自定义模式字符串格式化。可以应用于任何JDK数字类型，如Double和Long。
+        对于基于样式的格式设置，请将style（）属性设置为所需的NumberFormat.Style。对于自定义格式，请将pattern（）属性
+    设置为数字模式，例如＃，###。##。
+    	每个属性都是互斥的，因此每个注释实例只设置一个属性（最方便的一个属性用于格式化需求）。指定pattern（）属性时，它优
+    先于style（）属性。如果未指定注释属性，则应用的默认格式是基于样式的任一货币数，具体取决于带注释的字段或方法参数类型。
+---
+	属性:
+    	1. String pattern: ""
+			用于格式化字段的自定义模式。
+            默认为空String，表示未指定自定义模式String。如果希望根据未由样式表示的自定义数字模式格式化字段，请设置此
+        属性。
+
+		2. NumberFormat.Style style: org.springframework.format.annotation.NumberFormat.Style.DEFAULT
+			用于格式化字段的样式模式。
+            对于大多数带注释的类型，默认为NumberFormat.Style.DEFAULT，用于通用数字格式，默认为货币格式的货币类型
+        除外。如果希望根据默认样式以外的常用样式格式化字段，请设置此属性。
+## @DateTimeFormat 解读
+		声明字段或方法参数应格式化为日期或时间。
+        支持按样式模式，ISO日期时间模式或自定义格式模式字符串格式化。可以应用于java.util.Date，java.util.Calendar，
+    Long（毫秒时间戳）以及JSR-310 java.time和Joda-Time值类型。
+    	对于基于样式的格式设置，请将style（）属性设置为样式模式代码。代码的第一个字符是日期样式，第二个字符是时间样式。
+    为短格式指定'S'字符，为中等指定'M'，为长指定'L'，为完整指定'F'。通过指定样式字符“ - ”可以省略日期或时间。
+    	对于基于ISO的格式设置，请将iso（）属性设置为所需的DateTimeFormat.ISO格式，例如DateTimeFormat.ISO.DATE。
+    对于自定义格式，请将pattern（）属性设置为DateTime模式，例如yyyy / MM / dd hh：mm：ss a。
+    	每个属性都是互斥的，因此每个注释实例只设置一个属性（最方便的一个属性用于格式化需求）。指定pattern属性时，它优先
+    于style和ISO属性。指定iso（）属性时，它优先于style属性。如果未指定注释属性，则应用的默认格式为基于样式，样式代码为
+    “SS”（短日期，短时间）。
+---
+	属性:
+    	1. DateTimeFormat.ISO iso: org.springframework.format.annotation.DateTimeFormat.ISO.NONE
+			用于格式化字段的ISO模式。
+            可能的ISO模式在DateTimeFormat.ISO枚举中定义。
+            默认为DateTimeFormat.ISO.NONE，表示应忽略此属性。如果希望根据ISO格式格式化字段，请设置此属性。
+
+		2. String pattern: ""
+			用于格式化字段的自定义模式。
+            默认为空String，表示未指定自定义模式String。如果希望根据未由样式或ISO格式表示的自定义日期时间模式格式化
+        字段，请设置此属性。
+        	注意：此模式遵循原始的SimpleDateFormat样式，Joda-Time也支持该样式，对溢出具有严格的解析语义（例如，拒绝
+        非闰年的2月29日值）。因此，'yy'字符表示传统风格中的一年，而不是DateTimeFormatter规范中的“年代”（即，当使用
+        具有严格分辨率模式的DateTimeFormatter时，'yy'变成'uu'）。
+
+		3. String style: "SS"
+			用于格式化字段的样式模式。
+            短日期时间默认为“SS”。如果希望根据默认样式以外的常用样式格式化字段，请设置此属性。
+## @EnableAspectJAutoProxy 解读
+		支持处理使用AspectJ的@Aspect注释标记的组件，类似于Spring的<aop：aspectj-autoproxy> XML元素中的功能。
+    要在@Configuration类上使用如下：
+```java
+ @Configuration
+ @EnableAspectJAutoProxy
+ public class AppConfig {
+
+     @Bean
+     public FooService fooService() {
+         return new FooService();
+     }
+
+     @Bean
+     public MyAspect myAspect() {
+         return new MyAspect();
+     }
+ }
+```
+		FooService是典型的POJO组件，而MyAspect是@ Aspect风格的方面：
+```java
+ public class FooService {
+
+     // various methods
+ }
+ @Aspect
+ public class MyAspect {
+
+     @Before("execution(* FooService+.*(..))")
+     public void advice() {
+         // advise FooService methods as appropriate
+     }
+ }
+```
+		在上面的场景中，@EnableAspectJAutoProxy确保正确处理MyAspect，并将FooService代理混合在它提供的建议中。
+        用户可以使用proxyTargetClass（）属性控制为FooService创建的代理类型。以下是启用CGLIB样式的“子类”代理，而不是
+    基于默认接口的JDK代理方法。
+```java
+ @Configuration
+ @EnableAspectJAutoProxy(proxyTargetClass=true)
+ public class AppConfig {
+     // ...
+ }
+```
+		请注意，@Aspect bean可以像任何其他bean一样进行组件扫描。只需使用@Aspect和@Component标记方面：
+```java
+ package com.foo;
+
+ @Component
+ public class FooService { ... }
+
+ @Aspect
+ @Component
+ public class MyAspect { ... }
+```
+		然后使用@ComponentScan注释来同时选择：
+```java
+ @Configuration
+ @ComponentScan("com.foo")
+ @EnableAspectJAutoProxy
+ public class AppConfig {
+
+     // no explicit @Bean definitions required
+ }
+```
+		注意：@EnableAspectJAutoProxy仅适用于其本地应用程序上下文，允许在不同级别选择性地代理bean。请在每个单独的
+    上下文中重新声明@EnableAspectJAutoProxy，例如公共根Web应用程序上下文和任何单独的DispatcherServlet应用程序
+    上下文，如果您需要在多个级别应用其行为。
+		此功能需要在类路径上存在aspectjweaver。虽然这种依赖关系对于spring-aop来说是可选的，但它是
+    @EnableAspectJAutoProxy及其底层设施所必需的。
+---
+	属性:
+    	1. boolean exposeProxy: false
+			指示代理应由AOP框架作为ThreadLocal公开，以便通过AopContext类进行检索。默认情况下关闭，即不保证
+        AopContext访问将起作用。
+
+		2. boolean proxyTargetClass: false
+			指示是否要创建基于子类的（CGLIB）代理而不是基于标准Java接口的代理。默认值为false。
