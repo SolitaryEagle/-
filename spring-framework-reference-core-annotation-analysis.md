@@ -869,20 +869,84 @@ MyBean myBean = ctx.getBean(MyBean.class);
 	属性:
     	1. String value: 
 			实际值表达式：例如＃{systemProperties.myProp}。
+## @Description 解读
+		向从Component或Bean派生的bean定义添加文本描述。
+---
+	属性:
+    	1. String value: 
+			与bean定义关联的文本描述。
+## @Profile 解读
+		表示当一个或多个指定的配置文件处于活动状态时，组件符合注册条件。
+        概要文件是一个命名的逻辑分组，可以通过ConfigurableEnvironment.setActiveProfiles（java.lang.String ...）
+    以编程方式激活，也可以通过将spring.profiles.active属性设置为JVM系统属性，环境变量或者声明为Web应用程序的web.xml中
+    的Servlet上下文参数。也可以通过@ActiveProfiles注释在集成测试中以声明方式激活配置文件。
+		@Profile注释可以通过以下任何方式使用：
+        	1. 作为直接或间接使用@Component注释的任何类的类型级注释，包括@Configuration类
+        	2. 作为元注释，用于组成自定义构造型注释
+        	3. 作为任何@Bean方法的方法级注释
+		如果使用@Profile标记@Configuration类，则将绕过与该类关联的所有@Bean方法和@Import注释，除非一个或多个指定的配置
+    文件处于活动状态。配置文件字符串可以包含简单的配置文件名称（例如“p1”）或配置文件表达式。轮廓表达式允许表达更复杂的轮廓
+    逻辑，例如“p1＆p2”。有关支持的格式的详细信息，请参阅Profiles.of（String ...）。
+    	这类似于Spring XML中的行为：如果提供了beans元素的profile属性，例如<beans profile =“p1，p2”>，则不会解析
+    beans元素，除非至少有成员'p1'或'p2' 已被激活。同样，如果@Component或@Configuration类标记为
+	@Profile（{“p1”，“p2”}），则除非至少激活了配置文件“p1”或“p2”，否则不会注册或处理该类。
+    	如果给定的配置文件以NOT运算符（！）作为前缀，则如果配置文件未处于活动状态，则将注册带注释的组件 - 例如，给定
+    @Profile（{“p1”，“！p2”}），如果配置文件'p1'处于活动状态或配置文件'p2'未激活。
+    	如果省略@Profile注释，则无论哪个（如果有）配置文件处于活动状态，都将进行注册。
+		注意：对于@Bean方法使用@Profile，可能会应用特殊方案：对于相同Java方法名称的重载@Bean方法（类似于构造函数重载），
+    需要在所有重载方法上一致地声明@Profile条件。如果条件不一致，则只有重载方法中第一个声明的条件才重要。因此，@Version不
+    能用于选择具有特定参数签名的重载方法而不是另一个;同一个bean的所有工厂方法之间的分辨率遵循Spring的构造函数解析算法在创
+    建时。如果要定义具有不同配置文件条件的备用bean，请使用指向同一bean名称的不同Java方法名称;请参阅@Configuration的
+    javadoc中的ProfileDatabaseConfig。
+    	通过XML定义Spring bean时，可以使用<beans>元素的“profile”属性。有关详细信息，请参阅spring-beans XSD
+    （3.1或更高版本）中的文档。
+---
+	属性:
+		1. String[] value: 
+			应注册带注释的组件的配置文件集。
+## @Conditional 解读
+		表示只有在所有指定条件匹配时，组件才有资格进行注册。
+        条件是可以在bean定义到期之前以编程方式确定的任何状态（有关详细信息，请参阅条件）。
+        @Conditional批注可以通过以下任何方式使用：
+        	1. 作为直接或间接使用@Component注释的任何类的类型级注释，包括@Configuration类
+            2. 作为元注释，用于组成自定义构造型注释
+            3. 作为任何@Bean方法的方法级注释
+		如果使用@Conditional标记@Configuration类，则与该类关联的所有@Bean方法，@ Import注释和@ComponentScan注释
+    都将受条件限制。
+		注意：不支持继承@Conditional注释;来自超类或来自重写方法的任何条件都不会被考虑。为了强制执行这些语义，
+    @Conditional本身不会声明为@Inherited;此外，任何使用@Conditional元注释的自定义组合注释都不能声明为@Inherited。
+---
+	属性:
+    	1. Class<? extends Condition>[] value: 
+			必须匹配的所有条件才能注册组件。
+## @Inherited 解读
+		表示自动继承注释类型。如果注释类型声明中存在Inherited元注释，并且用户在类声明上查询注释类型，并且类声明没有此类型的
+    注释，则将自动查询类的超类以获取注释类型。将重复此过程，直到找到此类型的注释，或者到达类层次结构（对象）的顶部。如果没有
+    超类具有此类型的注释，则查询将指示相关类没有此类注释。
+		请注意，如果使用带注释的类型来注释除类之外的任何内容，则此元注释类型不起作用。另请注意，此元注释仅导致注释从超类
+    继承;已实现接口上的注释无效。
+## @ImportResource 解读
+		指示包含要导入的bean定义的一个或多个资源。
+        与@Import一样，此批注提供的功能类似于Spring XML中的<import />元素。它通常在将@Configuration类设计为
+    由AnnotationConfigApplicationContext引导时使用，但仍需要某些XML功能（如命名空间）。
+    	默认情况下，如果以“.groovy”结尾，将使用GroovyBeanDefinitionReader处理value（）属性的参数;否则，将使用
+    XmlBeanDefinitionReader来解析Spring <beans /> XML文件。可选地，可以声明reader（）属性，允许用户选择自定义
+    BeanDefinitionReader实现。
+---
+	属性:
+    	1. String[] locations: {}
+			要导入的资源位置。
+            支持资源加载前缀，如classpath：，file：等。
+            有关如何处理资源的详细信息，请咨询Javadoc for reader（）。
 
+		2. Class<? extends BeanDefinitionReader> reader: 
+				org.springframework.beans.factory.support.BeanDefinitionReader.class
+			BeanDefinitionReader实现在处理通过value（）属性指定的资源时使用。
+            默认情况下，阅读器将适应指定的资源路径：“。groovy”文件将使用GroovyBeanDefinitionReader处理;而所有其他
+        资源都将使用XmlBeanDefinitionReader进行处理。
 
-
-
-
-
-
-
-
-
-
-
-
-
+		3. String[] value: {}
+            locations() 的别名。
 
 
 
