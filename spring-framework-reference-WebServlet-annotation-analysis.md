@@ -432,12 +432,105 @@
 		5. String value: ""
 			name() 别名.
 ## @CookieValue 解读
+		注释，指示方法参数应绑定到HTTP cookie。
+        方法参数可以声明为Cookie类型或cookie值类型（String，int等）。
+---
+	属性:
+    	1. String defaultValue: "\n\t\t\n\t\t\n\ue000\ue001\ue002\n\t\t\t\t\n"
+    		用作后备的默认值。默认提供默认值会将required（）设置为false。
+
+        2. String name: ""
+        	要绑定的cookie的名称。
+
+		3. boolean required: true
+			是否需要cookie。默认为true，如果请求中缺少cookie，则会导致抛出异常。
+            如果您在请求中不存在cookie时更喜欢空值，请将此项切换为false。
+            或者，提供defaultValue（），它将此标志隐式设置为false。
+
+		4. String value: ""
+			name()的别名.
 ## @RequestPart 解读
+		可用于将“multipart / form-data”请求的一部分与方法参数相关联的注释。
+        支持的方法参数类型包括MultipartFile和Spring的MultipartResolver抽象，javax.servlet.http.Part结合
+    Servlet 3.0多部分请求，或者对于任何其他方法参数，部分的内容通过HttpMessageConverter考虑到请求部分的
+    “Content-Type”标头。这类似于@RequestBody根据非多部分常规请求的内容解析参数的行为。
+		请注意，@RequestParam注释还可用于将“multipart / form-data”请求的一部分与支持相同方法参数类型的方法参数
+    相关联。主要区别在于，当method参数不是String或原始MultipartFile / Part时，@RequestParam依赖于通过已注册的
+    Converter或PropertyEditor进行类型转换，而RequestPart依赖于HttpMessageConverters，同时考虑到请求部分
+    的“Content-Type”标题。RequestParam可能与名称 - 值表单字段一起使用，而RequestPart可能与包含更复杂内容的部分一起
+    使用，例如JSON，XML）。
+---
+	属性:
+    	1. String name: ""
+			要绑定到的“multipart / form-data”请求中的部件名称。
 
+		2. boolean required: true
+			是否需要该部件。默认为true，如果请求中缺少该部分，则会导致抛出异常。如果您在请求中不存在该部分时更喜欢空值，
+        请将其切换为false。
 
+        3. String value: ""
+			name()的别名.
+## @RequestAttribute 解读
+		用于将方法参数绑定到请求属性的注释。
+        主要动机是通过可选/必需的检查和转换为目标方法参数类型，从控制器方法提供对请求属性的方便访问。
+---
+	属性:
+    	1. String name: ""
+			要绑定的请求属性的名称。默认名称是从方法参数名称推断出来的。
 
+		2. boolean required: true
+			是否需要请求属性。默认为true，如果缺少该属性，则会导致抛出异常。如果您不喜欢null或
+        Java 8 java.util.Optional（如果该属性不存在），请将其切换为false。
 
+		3. String value: ""
+			name()的别名.
+## @EnableWebMvc 解读
+		将此批注添加到@Configuration类可从WebMvcConfigurationSupport导入Spring MVC配置，例如：
+```java
+ @Configuration
+ @EnableWebMvc
+ @ComponentScan(basePackageClasses = MyConfiguration.class)
+ public class MyConfiguration {
 
+ }
+```
+		要自定义导入的配置，请实现接口WebMvcConfigurer并覆盖单个方法，例如：
+```java
+ @Configuration
+ @EnableWebMvc
+ @ComponentScan(basePackageClasses = MyConfiguration.class)
+ public class MyConfiguration implements WebMvcConfigurer {
 
+           @Override
+           public void addFormatters(FormatterRegistry formatterRegistry) {
+         formatterRegistry.addConverter(new MyConverter());
+           }
 
+           @Override
+           public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+         converters.add(new MyHttpMessageConverter());
+           }
 
+ }
+```
+		注意：只有一个@Configuration类可以使用@EnableWebMvc注释来导入Spring Web MVC配置。但是，可以有多个
+    @Configuration类实现WebMvcConfigurer以自定义提供的配置。
+    	如果WebMvcConfigurer没有公开需要配置的更高级设置，请考虑删除@EnableWebMvc注释并直接从
+    WebMvcConfigurationSupport或DelegatingWebMvcConfiguration扩展，例如：
+```java
+ @Configuration
+ @ComponentScan(basePackageClasses = { MyConfiguration.class })
+ public class MyConfiguration extends WebMvcConfigurationSupport {
+
+           @Override
+           public void addFormatters(FormatterRegistry formatterRegistry) {
+         formatterRegistry.addConverter(new MyConverter());
+           }
+
+           @Bean
+           public RequestMappingHandlerAdapter requestMappingHandlerAdapter() {
+         // Create or delegate to "super" to create and
+         // customize properties of RequestMappingHandlerAdapter
+           }
+ }
+```
