@@ -479,30 +479,112 @@
 			用于类的默认KeyGenerator的bean名称。
             如果没有在操作级别设置，则使用此一个而不是默认值。
             密钥生成器与使用自定义密钥互斥。为操作定义此键时，将忽略此键生成器的值。
+## @EnableCaching 解读
+		启用Spring的注释驱动的缓存管理功能，类似于Spring的<cache：*> XML命名空间中的支持。要与@Configuration类一起
+    使用，如下所示：
+```java
+ @Configuration
+ @EnableCaching
+ public class AppConfig {
 
+     @Bean
+     public MyService myService() {
+         // configure and return a class having @Cacheable methods
+         return new MyService();
+     }
 
+     @Bean
+     public CacheManager cacheManager() {
+         // configure and return an implementation of Spring's CacheManager SPI
+         SimpleCacheManager cacheManager = new SimpleCacheManager();
+         cacheManager.setCaches(Arrays.asList(new ConcurrentMapCache("default")));
+         return cacheManager;
+     }
+ }
+```
+		作为参考，可以将上面的示例与以下Spring XML配置进行比较：
+```xml
+ <beans>
 
+     <cache:annotation-driven/>
 
+     <bean id="myService" class="com.foo.MyService"/>
 
+     <bean id="cacheManager" class="org.springframework.cache.support.SimpleCacheManager">
+         <property name="caches">
+             <set>
+                 <bean class="org.springframework.cache.concurrent.ConcurrentMapCacheFactoryBean">
+                     <property name="name" value="default"/>
+                 </bean>
+             </set>
+         </property>
+     </bean>
 
+ </beans>
+```
+		在上述两种情况中，@EnableCaching和<cache：annotation-driven />负责注册为注释驱动的缓存管理提供支持的必要
+    Spring组件，例如CacheInterceptor和基于代理或基于AspectJ的建议。调用@Cacheable方法时，拦截器进入调用堆栈。
+		如果存在JSR-107 API和Spring的JCache实现，则还会注册管理标准高速缓存注释的必要组件。这会创建基于代理或基于
+    AspectJ的建议，当调用使用CacheResult，CachePut，CacheRemove或CacheRemoveAll注释的方法时，它会将拦截器编织到
+    调用堆栈中。
+		必须注册CacheManager类型的bean，因为框架没有合理的默认值可用作约定。虽然<cache：annotation-driven>元素假定
+    一个名为“cacheManager”的bean，但@EnableCaching按类型搜索缓存管理器bean。因此，缓存管理器bean方法的命名并不重要。
+		对于那些希望在@EnableCaching和要使用的确切缓存管理器bean之间建立更直接关系的人，可以实现CachingConfigurer
+    回调接口。请注意下面的@Override-annotated方法：
+```java
+ @Configuration
+ @EnableCaching
+ public class AppConfig extends CachingConfigurerSupport {
 
+     @Bean
+     public MyService myService() {
+         // configure and return a class having @Cacheable methods
+         return new MyService();
+     }
 
+     @Bean
+     @Override
+     public CacheManager cacheManager() {
+         // configure and return an implementation of Spring's CacheManager SPI
+         SimpleCacheManager cacheManager = new SimpleCacheManager();
+         cacheManager.setCaches(Arrays.asList(new ConcurrentMapCache("default")));
+         return cacheManager;
+     }
 
+     @Bean
+     @Override
+     public KeyGenerator keyGenerator() {
+         // configure and return an implementation of Spring's KeyGenerator SPI
+         return new MyKeyGenerator();
+     }
+ }
+```
+		这种方法可能是理想的，因为它更明确，或者为了区分同一容器中存在的两个CacheManager bean可能是必要的。
+		另请注意上面示例中的keyGenerator方法。根据Spring的KeyGenerator SPI，这允许自定义缓存密钥生成策略。通常，
+    @EnableCaching将为此配置Spring的SimpleKeyGenerator，但在实现CachingConfigurer时，必须明确提供密钥生成器。
+    如果不需要自定义，则从此方法返回null或新的SimpleKeyGenerator（）。
+		CachingConfigurer提供了额外的自定义选项：建议从CachingConfigurerSupport扩展，它为所有方法提供默认实现，
+    如果您不需要自定义所有方法，这些实现非常有用。有关更多详细信息，请参阅CachingConfigurer Javadoc。
+		mode（）属性控制如何应用建议：如果模式为AdviceMode.PROXY（默认值），则其他属性控制代理的行为。请注意，代理模式
+    仅允许通过代理拦截呼叫;同一类中的本地调用不能以这种方式截获。
+		请注意，如果mode（）设置为AdviceMode.ASPECTJ，则将忽略proxyTargetClass（）属性的值。另请注意，在这种情况下，
+    spring-aspects模块JAR必须存在于类路径中，编译时编织或加载时编织将方面应用于受影响的类。在这种情况下没有涉及代理人;
+    本地电话也会被截获。
+---
+	属性:
+    	1. AdviceMode mode: org.springframework.context.annotation.AdviceMode.PROXY
+			指出应如何应用缓存建议。
+            默认值为AdviceMode.PROXY。请注意，代理模式仅允许通过代理拦截呼叫。同一类中的本地调用不能以这种方式截获;
+        由于Spring的拦截器甚至没有为这样的运行时场景启动，因此将忽略本地调用中此类方法的缓存注释。对于更高级的拦截模式，
+        请考虑将其切换为AdviceMode.ASPECTJ。
 
+        2. int order: 2147483647
+			指示在特定连接点应用多个建议时执行缓存顾问程序的顺序。
+            默认值为Ordered.LOWEST_PRECEDENCE。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        3. boolean proxyTargetClass: false
+    		指示是否要创建基于子类的（CGLIB）代理而不是基于标准Java接口的代理。默认值为false。仅当mode（）设置为
+        AdviceMode.PROXY时才适用。
+        	请注意，将此属性设置为true将影响所有需要代理的Spring托管bean，而不仅仅是那些标有@Cacheable的bean。例如，
+        标有Spring的@Transactional注释的其他bean将同时升级为子类代理。这种方法在实践中没有负面影响，除非有人明确期望
+        一种类型的代理与另一种代理相比，例如在测试中。
